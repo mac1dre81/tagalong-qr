@@ -82,7 +82,10 @@ img {
 .qr-actions,
 .scanner-actions,
 .inline-fields,
-.content-grid {
+.content-grid,
+.auth-main,
+.auth-actions,
+.auth-options {
   display: flex;
   gap: 1rem;
 }
@@ -140,7 +143,8 @@ img {
 .placeholder-card,
 .surface-card,
 label,
-fieldset {
+fieldset,
+.auth-form {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -501,6 +505,70 @@ button:focus-visible {
 
 .live-region.show {
   opacity: 1;
+}
+
+.auth-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  justify-content: center;
+}
+
+.auth-main {
+  align-items: stretch;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.auth-card {
+  flex: 1 1 320px;
+}
+
+.auth-form {
+  margin-top: 0.5rem;
+}
+
+.auth-options {
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.auth-checkbox {
+  flex-direction: row;
+  align-items: center;
+}
+
+.auth-checkbox input {
+  width: auto;
+  margin: 0;
+}
+
+.auth-actions {
+  flex-wrap: wrap;
+}
+
+.auth-message {
+  margin: 0;
+}
+
+.auth-message.is-success {
+  color: var(--success);
+}
+
+.auth-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--muted);
+}
+
+.auth-list li + li {
+  margin-top: 0.75rem;
 }
 
 #qr-render-target {
