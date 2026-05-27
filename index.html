@@ -23,15 +23,15 @@
         </div>
       </header>
 
-      <nav class="tabs" aria-label="Main navigation">
-        <button class="tab is-active" type="button" data-panel="generator-panel">Generator</button>
-        <button class="tab" type="button" data-panel="history-panel">History</button>
-        <button class="tab" type="button" data-panel="business-panel">Business</button>
-        <button class="tab" type="button" data-panel="settings-panel">Settings</button>
+      <nav class="tabs" aria-label="Main navigation" role="tablist">
+        <button class="tab is-active" type="button" role="tab" id="tab-generator" aria-selected="true" aria-controls="generator-panel" data-panel="generator-panel">Generator</button>
+        <button class="tab" type="button" role="tab" id="tab-history" aria-selected="false" aria-controls="history-panel" data-panel="history-panel">History</button>
+        <button class="tab" type="button" role="tab" id="tab-business" aria-selected="false" aria-controls="business-panel" data-panel="business-panel">Business</button>
+        <button class="tab" type="button" role="tab" id="tab-settings" aria-selected="false" aria-controls="settings-panel" data-panel="settings-panel">Settings</button>
       </nav>
 
       <main>
-        <section id="generator-panel" class="panel is-active" aria-labelledby="generator-heading">
+        <section id="generator-panel" class="panel is-active" role="tabpanel" aria-labelledby="tab-generator">
           <div class="content-grid">
             <div class="form-column">
               <section class="surface-card">
@@ -220,7 +220,7 @@
           </div>
         </section>
 
-        <section id="history-panel" class="panel" aria-labelledby="history-heading">
+        <section id="history-panel" class="panel" role="tabpanel" aria-labelledby="tab-history" hidden>
           <section class="surface-card">
             <div class="section-heading">
               <div>
@@ -233,7 +233,7 @@
           </section>
         </section>
 
-        <section id="business-panel" class="panel" aria-labelledby="business-heading">
+        <section id="business-panel" class="panel" role="tabpanel" aria-labelledby="tab-business" hidden>
           <section class="surface-card">
             <div class="section-heading">
               <div>
@@ -284,7 +284,7 @@
           </section>
         </section>
 
-        <section id="settings-panel" class="panel" aria-labelledby="settings-heading">
+        <section id="settings-panel" class="panel" role="tabpanel" aria-labelledby="tab-settings" hidden>
           <section class="surface-card">
             <div class="section-heading">
               <div>
