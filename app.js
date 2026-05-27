@@ -48,6 +48,8 @@ const TEMPLATES = {
 const VALID_PLANS = new Set(['free', 'premium', 'business']);
 const HISTORY_LIMITS = { free: 25, premium: 100, business: 500 };
 
+let _idCounter = 0;
+
 function generateId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     try { return crypto.randomUUID(); } catch { /* fall through */ }
@@ -59,7 +61,8 @@ function generateId() {
       return buf.map((n) => n.toString(16).padStart(8, '0')).join('-');
     } catch { /* fall through */ }
   }
-  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  // Timestamp + counter + random for sufficient entropy when Crypto API is unavailable.
+  return `id-${Date.now().toString(36)}-${(++_idCounter).toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function safeStorageSet(key, value) {
@@ -507,16 +510,28 @@ function saveHistoryItem(entry) {
 function persistHistory() {
   const payload = JSON.stringify(state.history);
   if (safeStorageSet(STORAGE_KEYS.history, payload)) return;
-  // Quota exceeded — prune oldest entries one-by-one until it fits or history is empty
-  while (state.history.length > 0) {
-    state.history = state.history.slice(0, state.history.length - 1);
-    if (safeStorageSet(STORAGE_KEYS.history, JSON.stringify(state.history))) {
-      toast('Storage full. Oldest saved QR codes were removed.');
-      renderHistory();
-      return;
+  // Quota exceeded — use binary/exponential pruning to find a fitting size quickly.
+  let lo = 0;
+  let hi = state.history.length - 1;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (safeStorageSet(STORAGE_KEYS.history, JSON.stringify(state.history.slice(0, mid + 1)))) {
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
     }
   }
-  toast('Storage unavailable. History could not be saved.');
+  if (lo === 0) {
+    // Nothing fits — clear history from storage entirely.
+    safeStorageSet(STORAGE_KEYS.history, '[]');
+    state.history = [];
+    toast('Storage full. History could not be saved.');
+  } else {
+    state.history = state.history.slice(0, lo);
+    safeStorageSet(STORAGE_KEYS.history, JSON.stringify(state.history));
+    toast('Storage full. Oldest saved QR codes were removed.');
+  }
+  renderHistory();
 }
 
 function renderHistory() {
