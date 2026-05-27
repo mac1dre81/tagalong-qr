@@ -3,6 +3,10 @@ const STORAGE_KEYS = {
   rememberedEmail: 'tagalong-auth-remembered-email',
 };
 
+const REDIRECT_DELAY_MS = 500;
+const TOAST_DURATION_MS = 2200;
+const HOME_PATH = '../';
+
 const elements = {};
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -87,7 +91,7 @@ function handleLogin(event) {
   renderSession(session);
   setMessage(`Signed in as ${email}. Redirecting…`, true);
   toast('Mock login complete.');
-  window.setTimeout(() => window.location.assign(getRedirectTarget()), 500);
+  window.setTimeout(() => window.location.assign(HOME_PATH), REDIRECT_DELAY_MS);
 }
 
 function handleLogout() {
@@ -114,19 +118,11 @@ function setMessage(message, isSuccess = false) {
   elements.message.classList.toggle('is-success', isSuccess);
 }
 
-function getRedirectTarget() {
-  const redirect = new URLSearchParams(window.location.search).get('redirect');
-  if (redirect && /^\/(?!\/)/.test(redirect)) {
-    return redirect;
-  }
-  return '../';
-}
-
 function toast(message) {
   elements.liveRegion.textContent = message;
   elements.liveRegion.classList.add('show');
   window.clearTimeout(toast.timeoutId);
-  toast.timeoutId = window.setTimeout(() => elements.liveRegion.classList.remove('show'), 2200);
+  toast.timeoutId = window.setTimeout(() => elements.liveRegion.classList.remove('show'), TOAST_DURATION_MS);
 }
 
 function safeParse(value, fallback) {
