@@ -1,8 +1,9 @@
 // Local QR generator bundle for TagAlong.
-// Based on Kazuhiko Arase's MIT-licensed QRCode for JavaScript vendored with qrcode-terminal.
+// Based on Kazuhiko Arase's MIT-licensed QRCode for JavaScript.
+// Full copyright notice and license text: THIRD_PARTY_NOTICES.md
 (function () {
-  const moduleSources = {
-    "./QR8bitByte": `var QRMode = require('./QRMode');
+  const moduleFactories = {
+    "./QR8bitByte": function(module, exports, require) {var QRMode = require('./QRMode');
 
 function QR8bitByte(data) {
 	this.mode = QRMode.MODE_8BIT_BYTE;
@@ -24,8 +25,8 @@ QR8bitByte.prototype = {
 };
 
 module.exports = QR8bitByte;
-`,
-    "./QRBitBuffer": `function QRBitBuffer() {
+  },
+    "./QRBitBuffer": function(module, exports, require) {function QRBitBuffer() {
 	this.buffer = [];
 	this.length = 0;
 }
@@ -63,16 +64,16 @@ QRBitBuffer.prototype = {
 };
 
 module.exports = QRBitBuffer;
-`,
-    "./QRErrorCorrectLevel": `module.exports = {
+  },
+    "./QRErrorCorrectLevel": function(module, exports, require) {module.exports = {
 	L : 1,
 	M : 0,
 	Q : 3,
 	H : 2
 };
 
-`,
-    "./QRMaskPattern": `module.exports = {
+  },
+    "./QRMaskPattern": function(module, exports, require) {module.exports = {
 	PATTERN000 : 0,
 	PATTERN001 : 1,
 	PATTERN010 : 2,
@@ -82,8 +83,8 @@ module.exports = QRBitBuffer;
 	PATTERN110 : 6,
 	PATTERN111 : 7
 };
-`,
-    "./QRMath": `var QRMath = {
+  },
+    "./QRMath": function(module, exports, require) {var QRMath = {
 
 	glog : function(n) {
 	
@@ -127,15 +128,15 @@ for (var i = 0; i < 255; i++) {
 }
 
 module.exports = QRMath;
-`,
-    "./QRMode": `module.exports = {
+  },
+    "./QRMode": function(module, exports, require) {module.exports = {
     MODE_NUMBER :       1 << 0,
     MODE_ALPHA_NUM :    1 << 1,
     MODE_8BIT_BYTE :    1 << 2,
     MODE_KANJI :        1 << 3
 };
-`,
-    "./QRPolynomial": `var QRMath = require('./QRMath');
+  },
+    "./QRPolynomial": function(module, exports, require) {var QRMath = require('./QRMath');
 
 function QRPolynomial(num, shift) {
 	if (num.length === undefined) {
@@ -201,8 +202,8 @@ QRPolynomial.prototype = {
 };
 
 module.exports = QRPolynomial;
-`,
-    "./QRRSBlock": `var QRErrorCorrectLevel = require('./QRErrorCorrectLevel');
+  },
+    "./QRRSBlock": function(module, exports, require) {var QRErrorCorrectLevel = require('./QRErrorCorrectLevel');
 
 function QRRSBlock(totalCount, dataCount) {
 	this.totalCount = totalCount;
@@ -500,8 +501,8 @@ QRRSBlock.getRsBlockTable = function(typeNumber, errorCorrectLevel) {
 };
 
 module.exports = QRRSBlock;
-`,
-    "./QRUtil": `var QRMode = require('./QRMode');
+  },
+    "./QRUtil": function(module, exports, require) {var QRMode = require('./QRMode');
 var QRPolynomial = require('./QRPolynomial');
 var QRMath = require('./QRMath');
 var QRMaskPattern = require('./QRMaskPattern');
@@ -773,8 +774,8 @@ var QRUtil = {
 };
 
 module.exports = QRUtil;
-`,
-    "index.js": `//---------------------------------------------------------------------
+  },
+    "index.js": function(module, exports, require) {//---------------------------------------------------------------------
 // QRCode for JavaScript
 //
 // Copyright (c) 2009 Kazuhiko Arase
@@ -1236,21 +1237,20 @@ QRCode.createBytes = function(buffer, rsBlocks) {
 };
 
 module.exports = QRCode;
-`
+  }
   };
 
   const cache = {};
 
   function requireModule(id) {
     if (cache[id]) return cache[id].exports;
-    const source = moduleSources[id];
-    if (!source) {
+    const factory = moduleFactories[id];
+    if (!factory) {
       throw new Error('Unknown QR module: ' + id);
     }
     const module = { exports: {} };
     cache[id] = module;
-    const fn = new Function('module', 'exports', 'require', source);
-    fn(module, module.exports, requireModule);
+    factory(module, module.exports, requireModule);
     return module.exports;
   }
 

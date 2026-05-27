@@ -45,16 +45,52 @@ const TEMPLATES = {
   },
 };
 
+const VALID_PLANS = new Set(['free', 'premium', 'business']);
+const HISTORY_LIMITS = { free: 25, premium: 100, business: 500 };
+
+function generateId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try { return crypto.randomUUID(); } catch { /* fall through */ }
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    try {
+      const buf = new Uint32Array(4);
+      crypto.getRandomValues(buf);
+      return buf.map((n) => n.toString(16).padStart(8, '0')).join('-');
+    } catch { /* fall through */ }
+  }
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function safeStorageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const _rawPlan = localStorage.getItem(STORAGE_KEYS.plan);
 const state = {
-  plan: localStorage.getItem(STORAGE_KEYS.plan) || 'free',
+  plan: VALID_PLANS.has(_rawPlan) ? _rawPlan : 'free',
   theme: localStorage.getItem(STORAGE_KEYS.theme) || 'light',
   history: safeParse(localStorage.getItem(STORAGE_KEYS.history), []),
   cameraStream: null,
-  scannerInterval: null,
+  scannerTimeout: null,
+  scannerRunning: false,
   previewDataUrl: '',
 };
 
 const elements = {};
+
+let previewDebounceTimer = null;
+const PREVIEW_SIZE = 250;
+
+function schedulePreview() {
+  window.clearTimeout(previewDebounceTimer);
+  previewDebounceTimer = window.setTimeout(() => renderPreview(), 200);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
@@ -118,14 +154,29 @@ function bindEvents() {
   elements.tabButtons.forEach((button) => {
     button.addEventListener('click', () => activatePanel(button.dataset.panel));
   });
+  // Keyboard navigation: Left/Right arrows move focus between tabs; Home/End go to first/last.
+  document.querySelector('[role="tablist"]').addEventListener('keydown', (event) => {
+    const tabs = elements.tabButtons;
+    const currentIdx = tabs.indexOf(document.activeElement);
+    if (currentIdx < 0) return;
+    let nextIdx = currentIdx;
+    if (event.key === 'ArrowRight') nextIdx = (currentIdx + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') nextIdx = (currentIdx - 1 + tabs.length) % tabs.length;
+    else if (event.key === 'Home') nextIdx = 0;
+    else if (event.key === 'End') nextIdx = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    tabs[nextIdx].focus();
+    activatePanel(tabs[nextIdx].dataset.panel);
+  });
   elements.addPhone.addEventListener('click', () => addPhoneRow({ type: 'mobile', value: '' }));
   elements.addEmail.addEventListener('click', () => addEmailRow({ value: '' }));
-  elements.form.addEventListener('input', () => renderPreview());
-  elements.form.addEventListener('change', () => renderPreview());
+  elements.form.addEventListener('input', () => schedulePreview());
+  elements.form.addEventListener('change', () => schedulePreview());
   elements.website.addEventListener('blur', () => {
     if (elements.website.value.trim()) {
       elements.website.value = normalizeUrl(elements.website.value.trim());
-      renderPreview();
+      schedulePreview();
     }
   });
   elements.generateButton.addEventListener('click', () => renderPreview({ announceSave: true }));
@@ -148,7 +199,7 @@ function bindEvents() {
 
 function toggleTheme() {
   state.theme = state.theme === 'light' ? 'dark' : 'light';
-  localStorage.setItem(STORAGE_KEYS.theme, state.theme);
+  safeStorageSet(STORAGE_KEYS.theme, state.theme);
   applyTheme();
 }
 
@@ -159,8 +210,9 @@ function applyTheme() {
 }
 
 function setPlan(plan) {
+  if (!VALID_PLANS.has(plan)) return;
   state.plan = plan;
-  localStorage.setItem(STORAGE_KEYS.plan, plan);
+  safeStorageSet(STORAGE_KEYS.plan, plan);
   applyPlan();
   renderHistory();
   renderPreview();
@@ -188,8 +240,16 @@ function applyPlan() {
 }
 
 function activatePanel(panelId) {
-  elements.tabButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.panel === panelId));
-  elements.panels.forEach((panel) => panel.classList.toggle('is-active', panel.id === panelId));
+  elements.tabButtons.forEach((button) => {
+    const isActive = button.dataset.panel === panelId;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-selected', String(isActive));
+  });
+  elements.panels.forEach((panel) => {
+    const isActive = panel.id === panelId;
+    panel.classList.toggle('is-active', isActive);
+    panel.hidden = !isActive;
+  });
 }
 
 function addPhoneRow(data) {
@@ -332,32 +392,49 @@ function renderPreview(options = {}) {
   }
 
   const vCard = buildVCard(data, state.plan);
-  const size = state.plan === 'free' ? 250 : Number(document.querySelector('#qr-size')?.value || 250);
+  // Live preview always renders at PREVIEW_SIZE to avoid jank from large canvases.
+  // The full user-selected size is only used when explicitly saving/downloading.
+  const exportSize = state.plan === 'free' ? PREVIEW_SIZE : Number(document.querySelector('#qr-size')?.value || PREVIEW_SIZE);
+  const previewSize = PREVIEW_SIZE;
   const colorDark = state.plan === 'free' ? '#111111' : document.querySelector('#qr-foreground').value;
   const colorLight = state.plan === 'free' ? '#ffffff' : document.querySelector('#qr-background').value;
 
   requestAnimationFrame(() => {
-    const rawCanvas = window.TagAlongQR.createCanvas(vCard, { size, colorDark, colorLight });
+    // Render a small preview canvas for display.
+    const previewCanvas = window.TagAlongQR.createCanvas(vCard, { size: previewSize, colorDark, colorLight });
     elements.qrRenderTarget.innerHTML = '';
-    elements.qrRenderTarget.appendChild(rawCanvas);
+    elements.qrRenderTarget.appendChild(previewCanvas);
 
-    const composedCanvas = document.createElement('canvas');
-    composedCanvas.width = size;
-    composedCanvas.height = size;
-    const context = composedCanvas.getContext('2d');
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, size, size);
-    context.drawImage(rawCanvas, 0, 0, size, size);
-
-    state.previewDataUrl = composedCanvas.toDataURL('image/png');
-    elements.qrPreview.src = state.previewDataUrl;
+    const composedPreview = document.createElement('canvas');
+    composedPreview.width = previewSize;
+    composedPreview.height = previewSize;
+    const previewCtx = composedPreview.getContext('2d');
+    previewCtx.fillStyle = '#ffffff';
+    previewCtx.fillRect(0, 0, previewSize, previewSize);
+    previewCtx.drawImage(previewCanvas, 0, 0, previewSize, previewSize);
+    elements.qrPreview.src = composedPreview.toDataURL('image/png');
     elements.qrPreview.hidden = false;
     elements.qrPlaceholder.hidden = true;
 
     if (options.announceSave) {
+      // For saving/export, regenerate at the selected export size.
+      const exportCanvas = exportSize !== previewSize
+        ? window.TagAlongQR.createCanvas(vCard, { size: exportSize, colorDark, colorLight })
+        : previewCanvas;
+      const composedExport = document.createElement('canvas');
+      composedExport.width = exportSize;
+      composedExport.height = exportSize;
+      const exportCtx = composedExport.getContext('2d');
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.fillRect(0, 0, exportSize, exportSize);
+      exportCtx.drawImage(exportCanvas, 0, 0, exportSize, exportSize);
+      state.previewDataUrl = composedExport.toDataURL('image/png');
       saveHistoryItem({ data, dataUrl: state.previewDataUrl, vCard });
       pulseSuccess();
       toast('QR code generated and saved locally.');
+    } else {
+      // Keep the preview-sized data URL for download/share until an explicit save.
+      state.previewDataUrl = composedPreview.toDataURL('image/png');
     }
   });
 }
@@ -384,7 +461,7 @@ function buildVCard(data, plan) {
     if (data.customField) lines.push(`X-CUSTOM:${escapeVCard(data.customField)}`);
   }
   lines.push('END:VCARD');
-  return lines.join('\n');
+  return lines.join('\r\n');
 }
 
 function mapPhoneType(type) {
@@ -412,9 +489,9 @@ function normalizeUrl(value) {
 }
 
 function saveHistoryItem(entry) {
-  const limit = state.plan === 'free' ? 25 : Number.POSITIVE_INFINITY;
+  const limit = HISTORY_LIMITS[state.plan] ?? HISTORY_LIMITS.free;
   const item = {
-    id: crypto.randomUUID(),
+    id: generateId(),
     createdAt: new Date().toISOString(),
     name: entry.data.fullName,
     subtitle: [entry.data.company, entry.data.title].filter(Boolean).join(' · '),
@@ -428,7 +505,18 @@ function saveHistoryItem(entry) {
 }
 
 function persistHistory() {
-  localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(state.history));
+  const payload = JSON.stringify(state.history);
+  if (safeStorageSet(STORAGE_KEYS.history, payload)) return;
+  // Quota exceeded — prune oldest entries one-by-one until it fits or history is empty
+  while (state.history.length > 0) {
+    state.history = state.history.slice(0, state.history.length - 1);
+    if (safeStorageSet(STORAGE_KEYS.history, JSON.stringify(state.history))) {
+      toast('Storage full. Oldest saved QR codes were removed.');
+      renderHistory();
+      return;
+    }
+  }
+  toast('Storage unavailable. History could not be saved.');
 }
 
 function renderHistory() {
@@ -550,27 +638,37 @@ async function startCameraScanner() {
     elements.scannerVideo.srcObject = state.cameraStream;
     elements.scannerVideo.hidden = false;
     await elements.scannerVideo.play();
+    state.scannerRunning = true;
     const detector = new BarcodeDetector({ formats: ['qr_code'] });
-    state.scannerInterval = window.setInterval(async () => {
+
+    async function scanFrame() {
+      if (!state.scannerRunning) return;
       try {
         const barcodes = await detector.detect(elements.scannerVideo);
         if (barcodes[0]?.rawValue) {
           handleScannedValue(barcodes[0].rawValue);
           stopCameraScanner();
+          return;
         }
       } catch {
         // ignore intermittent scanner errors
       }
-    }, 600);
+      if (state.scannerRunning) {
+        state.scannerTimeout = window.setTimeout(scanFrame, 600);
+      }
+    }
+
+    state.scannerTimeout = window.setTimeout(scanFrame, 600);
   } catch {
     toast('Unable to access the camera.');
   }
 }
 
 function stopCameraScanner() {
-  if (state.scannerInterval) {
-    window.clearInterval(state.scannerInterval);
-    state.scannerInterval = null;
+  state.scannerRunning = false;
+  if (state.scannerTimeout) {
+    window.clearTimeout(state.scannerTimeout);
+    state.scannerTimeout = null;
   }
   if (state.cameraStream) {
     state.cameraStream.getTracks().forEach((track) => track.stop());
@@ -627,40 +725,56 @@ function handleScannedValue(rawValue) {
 }
 
 function importVCard(rawVCard) {
-  const lines = rawVCard.split(/\r?\n/);
-  const data = {
-    phones: [],
-    emails: [],
-  };
+  // Unfold continuation lines (lines starting with space or tab are continuations of the previous line).
+  const rawLines = rawVCard.split(/\r?\n/);
+  const unfolded = [];
+  for (const line of rawLines) {
+    if ((line.startsWith(' ') || line.startsWith('\t')) && unfolded.length > 0) {
+      unfolded[unfolded.length - 1] += line.slice(1);
+    } else {
+      unfolded.push(line);
+    }
+  }
 
-  lines.forEach((line) => {
-    if (line.startsWith('FN:')) data.fullName = unescapeVCard(line.slice(3));
-    if (line.startsWith('ORG:')) data.company = unescapeVCard(line.slice(4));
-    if (line.startsWith('TITLE:')) data.title = unescapeVCard(line.slice(6));
-    if (line.startsWith('URL:')) data.website = unescapeVCard(line.slice(4));
-    if (line.startsWith('ADR')) {
-      const [, value = ''] = line.split(':');
+  const data = { phones: [], emails: [] };
+
+  for (const line of unfolded) {
+    // Split property+params from value at the first unescaped colon.
+    const colonIdx = line.indexOf(':');
+    if (colonIdx < 0) continue;
+    const propPart = line.slice(0, colonIdx).toUpperCase();
+    const value = line.slice(colonIdx + 1);
+    // Strip parameters: property name is everything before the first semicolon.
+    const propName = propPart.split(';')[0];
+
+    if (propName === 'FN') {
+      data.fullName = unescapeVCard(value);
+    } else if (propName === 'ORG') {
+      data.company = unescapeVCard(value.split(';')[0]);
+    } else if (propName === 'TITLE') {
+      data.title = unescapeVCard(value);
+    } else if (propName === 'URL') {
+      data.website = unescapeVCard(value);
+    } else if (propName === 'ADR') {
       const parts = value.split(';');
       data.street = unescapeVCard(parts[2] || '');
       data.city = unescapeVCard(parts[3] || '');
       data.state = unescapeVCard(parts[4] || '');
       data.zip = unescapeVCard(parts[5] || '');
-    }
-    if (line.startsWith('TEL')) {
-      const [meta, value = ''] = line.split(':');
+    } else if (propName === 'TEL') {
       data.phones.push({
-        type: meta.includes('WORK,CELL') ? 'work mobile' : meta.includes('WORK') ? 'work' : 'mobile',
+        type: propPart.includes('WORK,CELL') || propPart.includes('CELL,WORK') ? 'work mobile'
+          : propPart.includes('WORK') ? 'work'
+          : 'mobile',
         value: unescapeVCard(value),
       });
-    }
-    if (line.startsWith('EMAIL')) {
-      const [meta, value = ''] = line.split(':');
+    } else if (propName === 'EMAIL') {
       data.emails.push({
-        type: meta.includes('HOME') ? 'home' : meta.includes('OTHER') ? 'other' : 'work',
+        type: propPart.includes('HOME') ? 'home' : propPart.includes('OTHER') ? 'other' : 'work',
         value: unescapeVCard(value),
       });
     }
-  });
+  }
 
   setFieldValue('full-name', data.fullName);
   setFieldValue('company', data.company);
