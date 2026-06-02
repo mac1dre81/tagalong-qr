@@ -754,6 +754,10 @@ function exportSvg() {
     toast('Generate a QR code first.');
     return;
   }
+  if (!isSafePngDataUrl(state.previewDataUrl)) {
+    toast('QR image data is invalid. Generate the QR code again.');
+    return;
+  }
   const svgMarkup = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PREVIEW_SIZE} ${PREVIEW_SIZE}" width="${PREVIEW_SIZE}" height="${PREVIEW_SIZE}">
   <rect width="100%" height="100%" fill="#ffffff"/>
@@ -807,7 +811,7 @@ async function handleBatchUpload(event) {
   }
   const extension = file.name.split('.').pop()?.toLowerCase() || '';
   if (extension === 'xls' || extension === 'xlsx') {
-    toast('For Excel files, export as CSV or TSV first, then upload.');
+    toast('Direct Excel upload is not supported. Export as CSV or TSV first, then upload.');
     event.target.value = '';
     return;
   }
@@ -869,6 +873,7 @@ function buildQrDataUrl(payload, size) {
 }
 
 function parseTabularText(text) {
+  // Excel and other tools may prefix CSV files with a UTF-8 BOM.
   const normalized = text.replace(/^\uFEFF/, '');
   const firstLine = normalized.split(/\r?\n/)[0] || '';
   const delimiter = firstLine.includes('\t') ? '\t' : ',';
@@ -879,6 +884,10 @@ function parseTabularText(text) {
   return dataRows
     .filter((row) => row.some((cell) => cell.trim()))
     .map((row) => Object.fromEntries(headerMap.map((key, idx) => [key, (row[idx] || '').trim()])));
+}
+
+function isSafePngDataUrl(value) {
+  return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(String(value || ''));
 }
 
 function parseDelimited(text, delimiter) {
