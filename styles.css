@@ -385,6 +385,16 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.premium-actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.premium-actions .feature-lock {
+  position: static;
+  margin-inline-start: auto;
+}
+
 .is-unlocked .feature-lock {
   display: none;
 }
