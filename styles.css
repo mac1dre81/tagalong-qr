@@ -411,6 +411,15 @@ button:focus-visible {
   cursor: not-allowed;
 }
 
+.premium-block.is-locked {
+  padding-top: 2.3rem;
+}
+
+.premium-block code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.85em;
+}
+
 .file-picker {
   display: inline-flex;
   align-items: center;

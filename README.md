@@ -4,10 +4,10 @@ TagAlong is a responsive QR Code Business Card Generator that runs entirely in t
 
 ## Features
 
-- Live vCard QR code preview with PNG download, share, and clipboard copy
+- Live vCard QR code preview with PNG/SVG export, PDF print flow, share, and clipboard copy
 - Basic free-tier generator for name, phone, email, company, title, website, and address
 - Local history with JSON export and per-card reload/delete actions
-- Premium and business UI with feature gating, upgrade prompts, and mock subscription management
+- Premium dynamic QR profiles, CSV/TSV batch imports (including Excel-exported files), and business-tier gated analytics/API previews
 - Built-in QR scanner/import flow for vCard and URL QR codes on supported browsers
 
 ## Usage
