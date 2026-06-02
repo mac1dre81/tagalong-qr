@@ -26,7 +26,6 @@
       <nav class="tabs" aria-label="Main navigation" role="tablist">
         <button class="tab is-active" type="button" role="tab" id="tab-generator" aria-selected="true" aria-controls="generator-panel" data-panel="generator-panel">Generator</button>
         <button class="tab" type="button" role="tab" id="tab-history" aria-selected="false" aria-controls="history-panel" data-panel="history-panel">History</button>
-        <button class="tab" type="button" role="tab" id="tab-business" aria-selected="false" aria-controls="business-panel" data-panel="business-panel">Business</button>
         <button class="tab" type="button" role="tab" id="tab-settings" aria-selected="false" aria-controls="settings-panel" data-panel="settings-panel">Settings</button>
       </nav>
 
@@ -233,7 +232,7 @@
             <div class="section-heading">
               <div>
                 <h2 id="history-heading">Saved QR codes</h2>
-                <p>Free plans keep up to 25 cards locally. Premium and business plans remove the cap.</p>
+                <p>Free plans keep up to 25 cards locally. Premium plans remove the cap.</p>
               </div>
               <button id="export-history" class="secondary-button" type="button">Export JSON</button>
             </div>
@@ -241,58 +240,6 @@
           </section>
         </section>
 
-        <section id="business-panel" class="panel" role="tabpanel" aria-labelledby="tab-business" hidden>
-          <section class="surface-card">
-            <div class="section-heading">
-              <div>
-                <h2 id="business-heading">Business plan</h2>
-                <p>Compare plans and preview analytics-ready endpoints for a future backend.</p>
-              </div>
-            </div>
-            <div class="comparison-table-wrapper">
-              <table class="comparison-table">
-                <caption>Feature comparison</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Feature</th>
-                    <th scope="col">Free</th>
-                    <th scope="col">Premium</th>
-                    <th scope="col">Business</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><th scope="row">Black &amp; white QR cards</th><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td></tr>
-                  <tr><th scope="row">Custom colors, logo, frames</th><td>—</td><td>Included</td><td>Included</td></tr>
-                  <tr><th scope="row">History storage</th><td>25 local cards</td><td>Unlimited local</td><td>Cloud sync + analytics</td></tr>
-                  <tr><th scope="row">Dynamic QR editing</th><td>—</td><td>Included</td><td>Included</td></tr>
-                  <tr><th scope="row">Analytics dashboard</th><td>—</td><td>—</td><td>Included</td></tr>
-                  <tr><th scope="row">API access</th><td>—</td><td>—</td><td>Included</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="business-grid">
-              <article class="placeholder-card premium-block" data-tier="business">
-                <div class="feature-lock">Business feature</div>
-                <h3>Mock analytics dashboard</h3>
-                <ul>
-                  <li>Total scans: <strong>2,184</strong></li>
-                  <li>Top city: <strong>Seattle, US</strong></li>
-                  <li>Peak hour: <strong>2 PM</strong></li>
-                  <li>Top device: <strong>iPhone</strong></li>
-                </ul>
-              </article>
-              <article class="placeholder-card premium-block" data-tier="business">
-                <div class="feature-lock">Business feature</div>
-                <h3>Backend-ready API endpoints</h3>
-                <code>POST /api/business/dynamic-qrs</code>
-                <code>PATCH /api/business/dynamic-qrs/:id</code>
-                <code>GET /api/business/analytics/:id</code>
-                <code>POST /api/business/templates/share</code>
-              </article>
-            </div>
-          </section>
-        </section>
 
         <section id="settings-panel" class="panel" role="tabpanel" aria-labelledby="tab-settings" hidden>
           <section class="surface-card">
@@ -308,7 +255,6 @@
                 <select id="subscription-status">
                   <option value="free">Free</option>
                   <option value="premium">Premium</option>
-                  <option value="business">Business</option>
                 </select>
               </label>
               <button id="mock-payment" class="primary-button" type="button">Start mock checkout</button>
