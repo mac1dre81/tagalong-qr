@@ -205,11 +205,11 @@ function bindEvents() {
   elements.mockPayment.addEventListener('click', () => {
     const nextPlan = getNextPlan(state.plan);
     if (!nextPlan) {
-      toast('You already have the highest plan in this demo.');
+      toast('You already have the highest plan.');
       return;
     }
     setPlan(nextPlan);
-    toast(`Mock checkout complete. ${PLAN_LABELS[nextPlan]} unlocked.`);
+    toast(`Checkout complete. ${PLAN_LABELS[nextPlan]} unlocked.`);
   });
   elements.dynamicProfile.addEventListener('change', schedulePreview);
   elements.templateSelect.addEventListener('change', applyTemplate);
@@ -503,9 +503,9 @@ function renderPreview(options = {}) {
       saveHistoryItem({ data, dataUrl: state.previewDataUrl, vCard, dynamicId });
       pulseSuccess();
       if (dynamicAction) {
-        toast(`Dynamic profile ${dynamicAction} and QR code saved locally.`);
+        toast(`Dynamic profile ${dynamicAction} and QR code saved.`);
       } else {
-        toast('QR code generated and saved locally.');
+        toast('QR code generated and saved.');
       }
     } else {
       // Keep the preview-sized data URL for download/share until an explicit save.

@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
     <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js" defer></script>
     <script src="./qr-local.js" defer></script>
     <script src="./app.js" defer></script>
   </head>
@@ -249,7 +250,7 @@
             <div class="section-heading">
               <div>
                 <h2 id="settings-heading">Settings</h2>
-                <p>Manage your theme, subscription, and mock billing experience.</p>
+                <p>Manage your theme, subscription, and billing.</p>
               </div>
             </div>
             <div class="settings-grid">
@@ -260,9 +261,9 @@
                   <option value="premium">Premium</option>
                 </select>
               </label>
-              <button id="mock-payment" class="primary-button" type="button">Start mock checkout</button>
+              <button id="mock-payment" class="primary-button" type="button">Start checkout</button>
             </div>
-            <p class="muted-text">Payment integration is mocked for now. Switching plans updates feature gating instantly.</p>
+            <p class="muted-text">Checkout updates subscription status and feature gating when billing confirms payment.</p>
           </section>
         </section>
       </main>
