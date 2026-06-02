@@ -773,6 +773,7 @@ function exportPdf() {
     toast('Generate a QR code first.');
     return;
   }
+  toast('Opening print dialog for PDF export…');
   const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=860,height=720');
   if (!printWindow) {
     toast('Popup blocked. Allow popups to export as PDF.');
@@ -887,7 +888,19 @@ function parseTabularText(text) {
 }
 
 function isSafePngDataUrl(value) {
-  return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(String(value || ''));
+  const candidate = String(value || '');
+  if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(candidate)) return false;
+  const base64 = candidate.split(',')[1];
+  if (!base64) return false;
+  try {
+    const bytes = Uint8Array.from(atob(base64.slice(0, 24)), (char) => char.charCodeAt(0));
+    return bytes[0] === 0x89
+      && bytes[1] === 0x50
+      && bytes[2] === 0x4e
+      && bytes[3] === 0x47;
+  } catch {
+    return false;
+  }
 }
 
 function parseDelimited(text, delimiter) {
@@ -1004,7 +1017,7 @@ async function shareQr() {
     toast('QR code shared.');
   } catch (error) {
     if (error?.name !== 'AbortError') {
-      toast('Share failed. Try downloading the PNG instead.');
+      toast(error?.message || 'Share failed. Try downloading the PNG instead.');
     }
   }
 }
@@ -1022,8 +1035,8 @@ async function copyQr() {
       await navigator.clipboard.writeText(state.previewDataUrl);
     }
     toast('QR code copied to clipboard.');
-  } catch {
-    toast('Clipboard copy is not available in this browser.');
+  } catch (error) {
+    toast(error?.message || 'Clipboard copy is not available in this browser.');
   }
 }
 
@@ -1202,10 +1215,19 @@ function unescapeVCard(value) {
 }
 
 function dataUrlToFile(dataUrl, filename) {
-  const [meta, content] = dataUrl.split(',');
+  const [meta, content] = String(dataUrl || '').split(',');
+  if (!meta || !content) {
+    throw new Error('Invalid QR code data format.');
+  }
   const mimeMatch = meta.match(/data:(.*?);base64/);
   const mime = mimeMatch ? mimeMatch[1] : 'image/png';
-  const bytes = Uint8Array.from(atob(content), (char) => char.charCodeAt(0));
+  let decoded = '';
+  try {
+    decoded = atob(content);
+  } catch {
+    throw new Error('Invalid QR code data format.');
+  }
+  const bytes = Uint8Array.from(decoded, (char) => char.charCodeAt(0));
   return new File([bytes], filename, { type: mime });
 }
 
