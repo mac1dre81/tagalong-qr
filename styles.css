@@ -81,7 +81,6 @@ img {
 .preview-header,
 .repeatable-header,
 .settings-grid,
-.business-grid,
 .tabs,
 .qr-actions,
 .scanner-actions,
@@ -491,11 +490,6 @@ button:focus-visible {
   padding: 0.9rem;
   border-bottom: 1px solid var(--border);
   text-align: left;
-}
-
-.business-grid {
-  margin-top: 1.5rem;
-  flex-wrap: wrap;
 }
 
 .placeholder-card {

@@ -8,7 +8,6 @@ const STORAGE_KEYS = {
 const PLAN_LABELS = {
   free: 'Free',
   premium: 'Premium',
-  business: 'Business',
 };
 
 const TEMPLATES = {
@@ -46,9 +45,9 @@ const TEMPLATES = {
   },
 };
 
-const VALID_PLANS = new Set(['free', 'premium', 'business']);
-const HISTORY_LIMITS = { free: 25, premium: 100, business: 500 };
-const PLAN_ORDER = { free: 0, premium: 1, business: 2 };
+const VALID_PLANS = new Set(['free', 'premium']);
+const HISTORY_LIMITS = { free: 25, premium: 100 };
+const PLAN_ORDER = { free: 0, premium: 1 };
 
 let _idCounter = 0;
 
@@ -244,7 +243,6 @@ function setPlan(plan) {
 
 function getNextPlan(currentPlan) {
   if (currentPlan === 'free') return 'premium';
-  if (currentPlan === 'premium') return 'business';
   return '';
 }
 
