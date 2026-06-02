@@ -2,6 +2,7 @@ const STORAGE_KEYS = {
   theme: 'tagalong-theme',
   plan: 'tagalong-plan',
   history: 'tagalong-history',
+  dynamicProfiles: 'tagalong-dynamic-profiles',
 };
 
 const PLAN_LABELS = {
@@ -47,6 +48,7 @@ const TEMPLATES = {
 
 const VALID_PLANS = new Set(['free', 'premium', 'business']);
 const HISTORY_LIMITS = { free: 25, premium: 100, business: 500 };
+const PLAN_ORDER = { free: 0, premium: 1, business: 2 };
 
 let _idCounter = 0;
 
@@ -79,6 +81,7 @@ const state = {
   plan: VALID_PLANS.has(_rawPlan) ? _rawPlan : 'free',
   theme: localStorage.getItem(STORAGE_KEYS.theme) || 'light',
   history: safeParse(localStorage.getItem(STORAGE_KEYS.history), []),
+  dynamicProfiles: safeParse(localStorage.getItem(STORAGE_KEYS.dynamicProfiles), {}),
   cameraStream: null,
   scannerTimeout: null,
   scannerRunning: false,
@@ -99,6 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
   cacheElements();
   seedRepeatableFields();
   bindEvents();
+  refreshDynamicProfileOptions();
+  handleDynamicRoute();
   applyTheme();
   applyPlan();
   renderHistory();
@@ -126,6 +131,9 @@ function cacheElements() {
     downloadPng: document.querySelector('#download-png'),
     shareQr: document.querySelector('#share-qr'),
     copyQr: document.querySelector('#copy-qr'),
+    exportPdf: document.querySelector('#export-pdf'),
+    exportSvg: document.querySelector('#export-svg'),
+    batchUpload: document.querySelector('#batch-upload'),
     historyList: document.querySelector('#history-list'),
     exportHistory: document.querySelector('#export-history'),
     subscriptionStatus: document.querySelector('#subscription-status'),
@@ -138,6 +146,7 @@ function cacheElements() {
     scannerVideo: document.querySelector('#scanner-video'),
     scanImage: document.querySelector('#scan-image'),
     website: document.querySelector('#website'),
+    dynamicProfile: document.querySelector('#dynamic-profile'),
     premiumBlocks: [...document.querySelectorAll('.premium-block')],
   });
 }
@@ -153,7 +162,10 @@ function seedRepeatableFields() {
 
 function bindEvents() {
   elements.themeToggle.addEventListener('click', toggleTheme);
-  elements.upgradeButton.addEventListener('click', () => setPlan(state.plan === 'free' ? 'premium' : 'business'));
+  elements.upgradeButton.addEventListener('click', () => {
+    const nextPlan = getNextPlan(state.plan);
+    if (nextPlan) setPlan(nextPlan);
+  });
   elements.tabButtons.forEach((button) => {
     button.addEventListener('click', () => activatePanel(button.dataset.panel));
   });
@@ -186,18 +198,27 @@ function bindEvents() {
   elements.downloadPng.addEventListener('click', downloadPng);
   elements.shareQr.addEventListener('click', shareQr);
   elements.copyQr.addEventListener('click', copyQr);
+  elements.exportPdf.addEventListener('click', exportPdf);
+  elements.exportSvg.addEventListener('click', exportSvg);
+  elements.batchUpload.addEventListener('change', handleBatchUpload);
   elements.exportHistory.addEventListener('click', exportHistory);
   elements.subscriptionStatus.addEventListener('change', (event) => setPlan(event.target.value));
   elements.mockPayment.addEventListener('click', () => {
-    const nextPlan = state.plan === 'free' ? 'premium' : 'business';
+    const nextPlan = getNextPlan(state.plan);
+    if (!nextPlan) {
+      toast('You already have the highest plan in this demo.');
+      return;
+    }
     setPlan(nextPlan);
     toast(`Mock checkout complete. ${PLAN_LABELS[nextPlan]} unlocked.`);
   });
+  elements.dynamicProfile.addEventListener('change', schedulePreview);
   elements.templateSelect.addEventListener('change', applyTemplate);
   elements.startCamera.addEventListener('click', startCameraScanner);
   elements.stopCamera.addEventListener('click', stopCameraScanner);
   elements.scanImage.addEventListener('change', handleImageScan);
   elements.historyList.addEventListener('click', handleHistoryClick);
+  document.addEventListener('click', handleLockedControlAttempt, true);
 }
 
 function toggleTheme() {
@@ -221,25 +242,56 @@ function setPlan(plan) {
   renderPreview();
 }
 
+function getNextPlan(currentPlan) {
+  if (currentPlan === 'free') return 'premium';
+  if (currentPlan === 'premium') return 'business';
+  return '';
+}
+
+function hasPlan(requiredPlan) {
+  return (PLAN_ORDER[state.plan] ?? 0) >= (PLAN_ORDER[requiredPlan] ?? 0);
+}
+
+function getLockMessage(requiredPlan) {
+  return `Upgrade to ${PLAN_LABELS[requiredPlan]} to use this control.`;
+}
+
 function applyPlan() {
   elements.subscriptionStatus.value = state.plan;
-  elements.upgradeButton.textContent = state.plan === 'free' ? 'Upgrade to Premium' : `Plan: ${PLAN_LABELS[state.plan]}`;
+  const nextPlan = getNextPlan(state.plan);
+  elements.upgradeButton.textContent = nextPlan ? `Upgrade to ${PLAN_LABELS[nextPlan]}` : `Plan: ${PLAN_LABELS[state.plan]}`;
+  elements.upgradeButton.disabled = !nextPlan;
+  elements.mockPayment.disabled = !nextPlan;
   elements.adBanner.hidden = state.plan !== 'free';
 
   elements.premiumBlocks.forEach((block) => {
-    const isLocked = state.plan === 'free';
+    const requiredPlan = block.dataset.tier && VALID_PLANS.has(block.dataset.tier) ? block.dataset.tier : 'premium';
+    const isLocked = !hasPlan(requiredPlan);
     block.classList.toggle('is-locked', isLocked);
     block.classList.toggle('is-unlocked', !isLocked);
+    block.dataset.lockMessage = getLockMessage(requiredPlan);
+    const lockBadge = block.querySelector('.feature-lock');
+    if (lockBadge) {
+      lockBadge.textContent = `${PLAN_LABELS[requiredPlan]} feature`;
+      lockBadge.hidden = !isLocked;
+    }
     [...block.querySelectorAll('input, select, textarea, button')].forEach((field) => {
-      if (field.hasAttribute('data-placeholder')) {
-        field.disabled = true;
-      } else if (field.closest('.file-picker') && field.type === 'file') {
-        field.disabled = isLocked;
-      } else if (!field.id?.startsWith('download')) {
+      const isAlwaysAvailable = field.id?.startsWith('download');
+      if (!isAlwaysAvailable) {
         field.disabled = isLocked;
       }
     });
   });
+}
+
+function handleLockedControlAttempt(event) {
+  const blockedControl = event.target.closest('input, select, textarea, button, .file-picker');
+  if (!blockedControl) return;
+  const lockedBlock = blockedControl.closest('.premium-block.is-locked');
+  if (!lockedBlock) return;
+  event.preventDefault();
+  event.stopPropagation();
+  toast(lockedBlock.dataset.lockMessage || 'Upgrade your plan to unlock this feature.');
 }
 
 function activatePanel(panelId) {
@@ -362,6 +414,7 @@ function collectFormData() {
     birthday: document.querySelector('#birthday').value,
     notes: document.querySelector('#notes').value.trim(),
     customField: document.querySelector('#custom-field').value.trim(),
+    dynamicProfile: document.querySelector('#dynamic-profile').value,
     phones,
     emails,
   };
@@ -395,6 +448,9 @@ function renderPreview(options = {}) {
   }
 
   const vCard = buildVCard(data, state.plan);
+  const usingDynamicFeature = state.plan !== 'free' && data.dynamicProfile !== '__static__';
+  const dynamicPreviewId = usingDynamicFeature && data.dynamicProfile !== '__new__' ? data.dynamicProfile : '';
+  const previewPayload = dynamicPreviewId ? buildDynamicPayload(dynamicPreviewId) : vCard;
   // Live preview always renders at PREVIEW_SIZE to avoid jank from large canvases.
   // The full user-selected size is only used when explicitly saving/downloading.
   const exportSize = state.plan === 'free' ? PREVIEW_SIZE : Number(document.querySelector('#qr-size')?.value || PREVIEW_SIZE);
@@ -404,7 +460,7 @@ function renderPreview(options = {}) {
 
   requestAnimationFrame(() => {
     // Render a small preview canvas for display.
-    const previewCanvas = window.TagAlongQR.createCanvas(vCard, { size: previewSize, colorDark, colorLight });
+    const previewCanvas = window.TagAlongQR.createCanvas(previewPayload, { size: previewSize, colorDark, colorLight });
     elements.qrRenderTarget.innerHTML = '';
     elements.qrRenderTarget.appendChild(previewCanvas);
 
@@ -420,9 +476,23 @@ function renderPreview(options = {}) {
     elements.qrPlaceholder.hidden = true;
 
     if (options.announceSave) {
+      let dynamicId = '';
+      let payloadForSave = previewPayload;
+      let dynamicAction = '';
+      if (usingDynamicFeature) {
+        const creatingNewProfile = data.dynamicProfile === '__new__';
+        dynamicId = creatingNewProfile ? createDynamicProfile(vCard, data) : data.dynamicProfile;
+        if (!creatingNewProfile) {
+          updateDynamicProfile(dynamicId, vCard, data);
+        }
+        payloadForSave = buildDynamicPayload(dynamicId);
+        dynamicAction = creatingNewProfile ? 'created' : 'updated';
+        refreshDynamicProfileOptions(dynamicId);
+      }
+
       // For saving/export, regenerate at the selected export size.
-      const exportCanvas = exportSize !== previewSize
-        ? window.TagAlongQR.createCanvas(vCard, { size: exportSize, colorDark, colorLight })
+      const exportCanvas = exportSize !== previewSize || payloadForSave !== previewPayload
+        ? window.TagAlongQR.createCanvas(payloadForSave, { size: exportSize, colorDark, colorLight })
         : previewCanvas;
       const composedExport = document.createElement('canvas');
       composedExport.width = exportSize;
@@ -432,9 +502,13 @@ function renderPreview(options = {}) {
       exportCtx.fillRect(0, 0, exportSize, exportSize);
       exportCtx.drawImage(exportCanvas, 0, 0, exportSize, exportSize);
       state.previewDataUrl = composedExport.toDataURL('image/png');
-      saveHistoryItem({ data, dataUrl: state.previewDataUrl, vCard });
+      saveHistoryItem({ data, dataUrl: state.previewDataUrl, vCard, dynamicId });
       pulseSuccess();
-      toast('QR code generated and saved locally.');
+      if (dynamicAction) {
+        toast(`Dynamic profile ${dynamicAction} and QR code saved locally.`);
+      } else {
+        toast('QR code generated and saved locally.');
+      }
     } else {
       // Keep the preview-sized data URL for download/share until an explicit save.
       state.previewDataUrl = composedPreview.toDataURL('image/png');
@@ -491,9 +565,77 @@ function normalizeUrl(value) {
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
 
-function saveHistoryItem(entry) {
-  const limit = HISTORY_LIMITS[state.plan] ?? HISTORY_LIMITS.free;
-  const item = {
+function buildDynamicPayload(dynamicId) {
+  const baseUrl = `${window.location.origin}${window.location.pathname}`;
+  return `${baseUrl}#d=${encodeURIComponent(dynamicId)}`;
+}
+
+function persistDynamicProfiles() {
+  safeStorageSet(STORAGE_KEYS.dynamicProfiles, JSON.stringify(state.dynamicProfiles));
+}
+
+function createDynamicProfile(vCard, data) {
+  const id = generateId();
+  state.dynamicProfiles[id] = {
+    id,
+    name: data.fullName || 'Untitled profile',
+    company: data.company || '',
+    title: data.title || '',
+    vCard,
+    updatedAt: new Date().toISOString(),
+  };
+  persistDynamicProfiles();
+  return id;
+}
+
+function updateDynamicProfile(id, vCard, data) {
+  if (!id) return;
+  state.dynamicProfiles[id] = {
+    id,
+    name: data.fullName || 'Untitled profile',
+    company: data.company || '',
+    title: data.title || '',
+    vCard,
+    updatedAt: new Date().toISOString(),
+  };
+  persistDynamicProfiles();
+}
+
+function refreshDynamicProfileOptions(selectedValue = '') {
+  if (!elements.dynamicProfile) return;
+  const previousValue = selectedValue || elements.dynamicProfile.value || '__static__';
+  const options = [
+    '<option value="__static__">Static QR (direct vCard)</option>',
+    '<option value="__new__">Create new dynamic QR profile</option>',
+  ];
+  Object.values(state.dynamicProfiles)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .forEach((profile) => {
+      options.push(`<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)}</option>`);
+    });
+  elements.dynamicProfile.innerHTML = options.join('');
+  const availableValues = [...elements.dynamicProfile.options].map((option) => option.value);
+  elements.dynamicProfile.value = availableValues.includes(previousValue) ? previousValue : '__static__';
+}
+
+function handleDynamicRoute() {
+  const hash = window.location.hash || '';
+  const match = hash.match(/^#(?:d|dynamic)=([^&]+)/i);
+  if (!match) return;
+  const dynamicId = decodeURIComponent(match[1]);
+  const profile = state.dynamicProfiles[dynamicId];
+  if (!profile?.vCard) {
+    elements.validationMessage.textContent = 'Dynamic QR target was not found in local storage.';
+    return;
+  }
+  importVCard(profile.vCard);
+  refreshDynamicProfileOptions(dynamicId);
+  activatePanel('generator-panel');
+  toast(`Loaded dynamic profile: ${profile.name}`);
+}
+
+function createHistoryItem(entry) {
+  return {
     id: generateId(),
     createdAt: new Date().toISOString(),
     name: entry.data.fullName,
@@ -501,8 +643,23 @@ function saveHistoryItem(entry) {
     website: entry.data.website,
     vCard: entry.vCard,
     dataUrl: entry.dataUrl,
+    dynamicId: entry.dynamicId || '',
   };
+}
+
+function saveHistoryItem(entry) {
+  const limit = HISTORY_LIMITS[state.plan] ?? HISTORY_LIMITS.free;
+  const item = createHistoryItem(entry);
   state.history = [item, ...state.history].slice(0, limit);
+  persistHistory();
+  renderHistory();
+}
+
+function saveBatchHistoryItems(entries) {
+  if (!entries.length) return;
+  const limit = HISTORY_LIMITS[state.plan] ?? HISTORY_LIMITS.free;
+  const items = entries.map(createHistoryItem);
+  state.history = [...items, ...state.history].slice(0, limit);
   persistHistory();
   renderHistory();
 }
@@ -548,6 +705,7 @@ function renderHistory() {
           <div>
             <h3>${escapeHtml(item.name)}</h3>
             <p>${escapeHtml(item.subtitle || 'Saved QR business card')}</p>
+            ${item.dynamicId ? '<p><strong>Dynamic profile</strong></p>' : ''}
             <p>${new Date(item.createdAt).toLocaleString()}</p>
           </div>
           <div class="stack">
@@ -576,6 +734,11 @@ function handleHistoryClick(event) {
   const item = state.history.find((entry) => entry.id === id);
   if (!item) return;
   importVCard(item.vCard);
+  if (item.dynamicId) {
+    refreshDynamicProfileOptions(item.dynamicId);
+  } else {
+    refreshDynamicProfileOptions('__static__');
+  }
   activatePanel('generator-panel');
   toast(`Loaded ${item.name} into the generator.`);
 }
@@ -584,6 +747,220 @@ function exportHistory() {
   const blob = new Blob([JSON.stringify(state.history, null, 2)], { type: 'application/json' });
   downloadBlob(blob, 'tagalong-history.json');
   toast('History exported as JSON.');
+}
+
+function exportSvg() {
+  if (!state.previewDataUrl) {
+    toast('Generate a QR code first.');
+    return;
+  }
+  const svgMarkup = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PREVIEW_SIZE} ${PREVIEW_SIZE}" width="${PREVIEW_SIZE}" height="${PREVIEW_SIZE}">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <image href="${state.previewDataUrl}" width="${PREVIEW_SIZE}" height="${PREVIEW_SIZE}" />
+</svg>`.trim();
+  const blob = new Blob([svgMarkup], { type: 'image/svg+xml' });
+  downloadBlob(blob, `${slugify(document.querySelector('#full-name').value || 'tagalong-card')}.svg`);
+  toast('SVG exported.');
+}
+
+function exportPdf() {
+  if (!state.previewDataUrl) {
+    toast('Generate a QR code first.');
+    return;
+  }
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=860,height=720');
+  if (!printWindow) {
+    toast('Popup blocked. Allow popups to export as PDF.');
+    return;
+  }
+  const title = escapeHtml(document.querySelector('#full-name').value || 'TagAlong QR card');
+  printWindow.document.write(`<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body { margin: 0; padding: 24px; font-family: Inter, system-ui, sans-serif; text-align: center; }
+      img { max-width: 420px; width: 100%; height: auto; border: 1px solid #ddd; border-radius: 12px; }
+      p { color: #5f6f86; }
+    </style>
+  </head>
+  <body>
+    <h1>${title}</h1>
+    <p>Use your browser's "Save as PDF" destination in the print dialog.</p>
+    <img src="${state.previewDataUrl}" alt="QR code preview" />
+    <script>window.onload = () => window.print();</script>
+  </body>
+</html>`);
+  printWindow.document.close();
+  toast('Print dialog opened. Choose Save as PDF.');
+}
+
+async function handleBatchUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!hasPlan('premium')) {
+    toast(getLockMessage('premium'));
+    event.target.value = '';
+    return;
+  }
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  if (extension === 'xls' || extension === 'xlsx') {
+    toast('For Excel files, export as CSV or TSV first, then upload.');
+    event.target.value = '';
+    return;
+  }
+
+  try {
+    const rawText = await file.text();
+    const rows = parseTabularText(rawText);
+    if (!rows.length) {
+      toast('No rows found. Include a header row and at least one contact.');
+      return;
+    }
+
+    const validEntries = [];
+    let skipped = 0;
+    for (const row of rows) {
+      const data = mapBatchRow(row);
+      const error = validateForm(data);
+      if (error) {
+        skipped += 1;
+        continue;
+      }
+      const vCard = buildVCard(data, state.plan);
+      const dataUrl = buildQrDataUrl(vCard, PREVIEW_SIZE);
+      if (!dataUrl) {
+        skipped += 1;
+        continue;
+      }
+      validEntries.push({ data, vCard, dataUrl, dynamicId: '' });
+    }
+
+    if (!validEntries.length) {
+      toast('No valid contacts found in upload.');
+      return;
+    }
+
+    saveBatchHistoryItems(validEntries);
+    importBatchEntry(validEntries[0].data);
+    toast(`Imported ${validEntries.length} contact${validEntries.length === 1 ? '' : 's'}${skipped ? ` (${skipped} skipped)` : ''}.`);
+  } catch {
+    toast('Could not read that file. Use a UTF-8 CSV or TSV export.');
+  } finally {
+    event.target.value = '';
+  }
+}
+
+function buildQrDataUrl(payload, size) {
+  if (!window.TagAlongQR?.createCanvas) return '';
+  const colorDark = state.plan === 'free' ? '#111111' : document.querySelector('#qr-foreground').value;
+  const colorLight = state.plan === 'free' ? '#ffffff' : document.querySelector('#qr-background').value;
+  const canvas = window.TagAlongQR.createCanvas(payload, { size, colorDark, colorLight });
+  const composed = document.createElement('canvas');
+  composed.width = size;
+  composed.height = size;
+  const ctx = composed.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.drawImage(canvas, 0, 0, size, size);
+  return composed.toDataURL('image/png');
+}
+
+function parseTabularText(text) {
+  const normalized = text.replace(/^\uFEFF/, '');
+  const firstLine = normalized.split(/\r?\n/)[0] || '';
+  const delimiter = firstLine.includes('\t') ? '\t' : ',';
+  const rows = parseDelimited(normalized, delimiter);
+  if (!rows.length) return [];
+  const [header, ...dataRows] = rows;
+  const headerMap = header.map((column) => normalizeHeader(column));
+  return dataRows
+    .filter((row) => row.some((cell) => cell.trim()))
+    .map((row) => Object.fromEntries(headerMap.map((key, idx) => [key, (row[idx] || '').trim()])));
+}
+
+function parseDelimited(text, delimiter) {
+  const rows = [];
+  let current = '';
+  let row = [];
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (!inQuotes && char === delimiter) {
+      row.push(current);
+      current = '';
+      continue;
+    }
+    if (!inQuotes && (char === '\n' || char === '\r')) {
+      if (char === '\r' && nextChar === '\n') i += 1;
+      row.push(current);
+      rows.push(row);
+      row = [];
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  row.push(current);
+  rows.push(row);
+  return rows;
+}
+
+function normalizeHeader(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function mapBatchRow(row) {
+  const phoneValue = row.phone || row.phonenumber || row.mobile || '';
+  const emailValue = row.email || row.emailaddress || '';
+  const urlValue = row.website || row.url || '';
+  return {
+    fullName: row.fullname || row.name || '',
+    company: row.company || row.organization || '',
+    title: row.title || row.jobtitle || '',
+    website: normalizeUrl(urlValue),
+    street: row.street || row.address || '',
+    city: row.city || '',
+    state: row.state || row.province || '',
+    zip: row.zip || row.postal || row.postalcode || '',
+    linkedin: row.linkedin || '',
+    twitter: row.twitter || row.x || '',
+    birthday: row.birthday || '',
+    notes: row.notes || '',
+    customField: row.customfield || '',
+    dynamicProfile: '__static__',
+    phones: phoneValue ? [{ type: 'mobile', value: phoneValue }] : [],
+    emails: emailValue ? [{ type: 'work', value: emailValue }] : [],
+  };
+}
+
+function importBatchEntry(data) {
+  setFieldValue('full-name', data.fullName);
+  setFieldValue('company', data.company);
+  setFieldValue('title', data.title);
+  setFieldValue('website', data.website);
+  setFieldValue('street', data.street);
+  setFieldValue('city', data.city);
+  setFieldValue('state', data.state);
+  setFieldValue('zip', data.zip);
+  elements.phoneList.innerHTML = '';
+  elements.emailList.innerHTML = '';
+  (data.phones.length ? data.phones : [{ type: 'mobile', value: '' }]).forEach(addPhoneRow);
+  (data.emails.length ? data.emails : [{ value: '' }]).forEach(addEmailRow);
+  refreshDynamicProfileOptions('__static__');
+  renderPreview();
 }
 
 function downloadPng() {
@@ -803,6 +1180,7 @@ function importVCard(rawVCard) {
   elements.emailList.innerHTML = '';
   (data.phones.length ? data.phones : [{ type: 'mobile', value: '' }]).forEach(addPhoneRow);
   (data.emails.length ? data.emails : [{ value: '' }]).forEach(addEmailRow);
+  refreshDynamicProfileOptions('__static__');
   renderPreview();
 }
 

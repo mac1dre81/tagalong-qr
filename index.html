@@ -140,6 +140,13 @@
                         <option value="2000">2000px</option>
                       </select>
                     </label>
+                    <label>
+                      <span>Dynamic QR profile</span>
+                      <select id="dynamic-profile" name="dynamicProfile">
+                        <option value="__static__">Static QR (direct vCard)</option>
+                        <option value="__new__">Create new dynamic QR profile</option>
+                      </select>
+                    </label>
                   </fieldset>
 
                   <fieldset class="premium-block" data-tier="premium">
@@ -208,13 +215,14 @@
                 </div>
                 <div class="qr-actions premium-actions premium-block" data-tier="premium">
                   <div class="feature-lock">Premium feature</div>
-                  <button class="secondary-button" type="button" data-placeholder disabled title="Premium export is shown as a gated placeholder in this demo">Export PDF</button>
-                  <button class="secondary-button" type="button" data-placeholder disabled title="Premium export is shown as a gated placeholder in this demo">Export SVG</button>
-                  <label class="file-picker disabled-input">
+                  <button id="export-pdf" class="secondary-button" type="button" title="Open a print-ready view to save as PDF">Export PDF</button>
+                  <button id="export-svg" class="secondary-button" type="button">Export SVG</button>
+                  <label class="file-picker">
                     <span>Batch upload CSV/Excel</span>
-                    <input type="file" data-placeholder disabled />
+                    <input id="batch-upload" type="file" accept=".csv,.tsv,.txt,.xls,.xlsx,text/csv,text/tab-separated-values,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
                   </label>
                 </div>
+                <p class="muted-text premium-block" data-tier="premium">Batch upload expects headers like <code>fullName,email,phone,company,title,website,street,city,state,zip</code>. Excel-exported CSV/TSV is supported.</p>
               </section>
             </aside>
           </div>
@@ -264,7 +272,8 @@
             </div>
 
             <div class="business-grid">
-              <article class="placeholder-card">
+              <article class="placeholder-card premium-block" data-tier="business">
+                <div class="feature-lock">Business feature</div>
                 <h3>Mock analytics dashboard</h3>
                 <ul>
                   <li>Total scans: <strong>2,184</strong></li>
@@ -273,7 +282,8 @@
                   <li>Top device: <strong>iPhone</strong></li>
                 </ul>
               </article>
-              <article class="placeholder-card">
+              <article class="placeholder-card premium-block" data-tier="business">
+                <div class="feature-lock">Business feature</div>
                 <h3>Backend-ready API endpoints</h3>
                 <code>POST /api/business/dynamic-qrs</code>
                 <code>PATCH /api/business/dynamic-qrs/:id</code>
