@@ -12,6 +12,9 @@ const subscriptionRoutes = require('./routes/subscription');
 const profileRoutes = require('./routes/profiles');
 const historyRoutes = require('./routes/history');
 const webhookRoutes = require('./routes/webhooks');
+const qrRoutes = require('./routes/qr');
+const billingRoutes = require('./routes/billing');
+const profileRoute = require('./routes/profile');
 
 const app = express();
 
@@ -32,6 +35,9 @@ app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/qr', qrRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/profile', profileRoute);
 
 app.use((err, req, res, _next) => {
   console.error('Unhandled error', { requestId: req.requestId, message: err?.message });

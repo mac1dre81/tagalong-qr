@@ -14,4 +14,17 @@ function verifySession(token) {
   return jwt.verify(token, jwtSecret);
 }
 
-module.exports = { generateId, signSession, verifySession };
+function verifySessionSafe(token) {
+  try {
+    return { valid: true, payload: jwt.verify(token, jwtSecret) };
+  } catch (err) {
+    const message = err.name === 'TokenExpiredError'
+      ? 'Token expired'
+      : err.name === 'JsonWebTokenError'
+      ? 'Invalid token'
+      : 'Authentication failed';
+    return { valid: false, error: message };
+  }
+}
+
+module.exports = { generateId, signSession, verifySession, verifySessionSafe };
