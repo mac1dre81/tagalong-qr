@@ -6,28 +6,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.lifecycleScope
 import com.tagalong.app.data.TagAlongRepository
-import com.tagalong.app.ui.AppUiState
-import com.tagalong.app.ui.AppViewModel
+import com.tagalong.app.data.QrScanDto
+import com.tagalong.app.ui.*
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -48,16 +40,9 @@ class MainActivity : ComponentActivity() {
     setContent {
       MaterialTheme {
         val state by viewModel.uiState.collectAsState()
-        AppScreen(
+        AppNavigator(
           state = state,
-          onLogin = viewModel::login,
-          onRegister = viewModel::register,
-          onLogout = viewModel::logout,
-          onStartCheckout = {
-            lifecycleScope.launch {
-              viewModel.checkoutUrl()?.let { openCheckout(it) }
-            }
-          }
+          viewModel = viewModel
         )
       }
     }
@@ -69,49 +54,86 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AppScreen(
+fun AppNavigator(
   state: AppUiState,
-  onLogin: (String, String) -> Unit,
-  onRegister: (String, String) -> Unit,
-  onLogout: () -> Unit,
-  onStartCheckout: () -> Unit,
+  viewModel: AppViewModel,
 ) {
-  val (email, setEmail) = remember { mutableStateOf("") }
-  val (password, setPassword) = remember { mutableStateOf("") }
+  val (screen, setScreen) = remember { mutableStateOf(Screen.Main) }
+  val qrHistory = remember { mutableStateListOf<QrScanDto>() }
 
-  Column(
-    modifier = Modifier
-      .fillMaxSize()
-      .padding(20.dp),
-    verticalArrangement = Arrangement.spacedBy(12.dp),
-  ) {
-    Text(text = "TagAlong", style = MaterialTheme.typography.headlineMedium)
-    Text(text = state.statusMessage)
-
-    if (state.authenticatedEmail.isBlank()) {
-      OutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
-        value = email,
-        onValueChange = setEmail,
-        label = { Text("Email") },
-        singleLine = true,
-      )
-      OutlinedTextField(
-        modifier = Modifier.fillMaxWidth(),
-        value = password,
-        onValueChange = setPassword,
-        label = { Text("Password") },
-        singleLine = true,
-      )
-      Button(onClick = { onLogin(email.trim(), password) }, modifier = Modifier.fillMaxWidth()) { Text("Sign in") }
-      Button(onClick = { onRegister(email.trim(), password) }, modifier = Modifier.fillMaxWidth()) { Text("Create account") }
-    } else {
-      Text("Signed in as: ${state.authenticatedEmail}")
-      Text("Plan: ${state.plan.ifBlank { "free" }}")
-      Text("Dynamic profiles: ${state.profileCount}")
-      Text("History items: ${state.historyCount}")
-      Button(onClick = onStartCheckout, modifier = Modifier.fillMaxWidth()) { Text("Upgrade via checkout") }
-      Button(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
+  // Load QR history when needed
+  val coroutineScope = rememberCoroutineScope()
+  LaunchedEffect(screen) {
+    if (screen == Screen.QrHistory) {
+      viewModel.loadQrHistory()
+        .onSuccess { qrHistory.clear(); qrHistory.addAll(it) }
     }
   }
+
+  when (screen) {
+    is Screen.Login -> {
+      LoginScreen(
+        viewModel = viewModel,
+        onLoginSuccess = { setScreen(Screen.Main) },
+        onRegisterClick = { setScreen(Screen.Register) }
+      )
+    }
+    is Screen.Register -> {
+      RegisterScreen(
+        viewModel = viewModel,
+        onRegisterSuccess = { setScreen(Screen.Main) },
+        onBackToLogin = { setScreen(Screen.Login) }
+      )
+    }
+    is Screen.Main -> {
+      MainScreen(
+        state = state,
+        onLogin = viewModel::login,
+        onRegister = viewModel::register,
+        onLogout = viewModel::logout,
+        onStartCheckout = {
+          coroutineScope.launch {
+            viewModel.checkoutUrl()?.let { /* open checkout */ }
+          }
+        },
+        onScanQr = { setScreen(Screen.QrScanner) },
+        onShowQrHistory = { setScreen(Screen.QrHistory) },
+        qrHistory = qrHistory
+      )
+    }
+    is Screen.QrScanner -> {
+      QrScannerScreen(
+        onQrDetected = { content ->
+          setScreen(Screen.Main)
+        },
+        onCancel = { setScreen(Screen.Main) },
+        onSaveScan = { content, type ->
+          coroutineScope.launch {
+            viewModel.saveQrScan(content, type)
+              .onSuccess { qrHistory.add(0, it) }
+          }
+        }
+      )
+    }
+    is Screen.QrHistory -> {
+      QrHistoryScreen(
+        scans = qrHistory,
+        onBack = { setScreen(Screen.Main) },
+        onDelete = { id ->
+          coroutineScope.launch {
+            viewModel.deleteQrScan(id)
+              .onSuccess { qrHistory.removeAll { it.id == id } }
+          }
+        }
+      )
+    }
+  }
+}
+
+sealed class Screen {
+  object Login : Screen()
+  object Register : Screen()
+  object Main : Screen()
+  object QrScanner : Screen()
+  object QrHistory : Screen()
 }

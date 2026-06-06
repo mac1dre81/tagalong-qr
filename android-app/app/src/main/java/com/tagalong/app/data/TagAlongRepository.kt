@@ -79,6 +79,19 @@ class TagAlongRepository private constructor(
     api.history()
   }.map { it.history }
 
+  // QR Scan functions
+  suspend fun saveQrScan(content: String, type: String = "text", name: String? = null): Result<QrScanDto> = safeApiCall {
+    api.saveQrScan(QrScanRequest(content = content, type = type, name = name))
+  }
+
+  suspend fun qrHistory(): Result<List<QrScanDto>> = safeApiCall {
+    api.qrHistory()
+  }.map { it.scans }
+
+  suspend fun deleteQrScan(id: String): Result<Unit> = safeApiCall {
+    api.deleteQrScan(id)
+  }
+
   companion object {
     fun create(context: Context): TagAlongRepository {
       val authStore = AuthStore(context.applicationContext)

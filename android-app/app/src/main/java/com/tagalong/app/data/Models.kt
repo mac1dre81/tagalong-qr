@@ -14,5 +14,10 @@ data class CheckoutRequest(val plan: String = "premium")
 data class ProfileRequest(val name: String, val company: String = "", val title: String = "", val vCard: String)
 data class HistoryItemRequest(val name: String, val subtitle: String = "", val website: String = "", val vCard: String, val dataUrl: String, val dynamicId: String = "")
 
+// QR Scan models
+data class QrScanDto(val id: String, val content: String, val type: String, val name: String?, val scannedAt: String)
+data class QrScanRequest(val content: String, val type: String = "text", val name: String? = null)
+data class QrScansResponse(val scans: List<QrScanDto>)
+
 data class ProfilesResponseDto(val profiles: List<ProfileDto>)
 data class HistoryResponseDto(val history: List<HistoryItemDto>)

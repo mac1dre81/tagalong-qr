@@ -3,6 +3,7 @@ package com.tagalong.app.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tagalong.app.data.TagAlongRepository
+import com.tagalong.app.data.QrScanDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,4 +81,11 @@ class AppViewModel(private val repository: TagAlongRepository) : ViewModel() {
   }
 
   suspend fun checkoutUrl(): String? = repository.checkout().getOrNull()?.checkoutUrl
+
+  // QR Scan functions
+  suspend fun saveQrScan(content: String, type: String) = repository.saveQrScan(content, type)
+
+  suspend fun loadQrHistory(): Result<List<QrScanDto>> = repository.qrHistory()
+
+  suspend fun deleteQrScan(id: String) = repository.deleteQrScan(id)
 }

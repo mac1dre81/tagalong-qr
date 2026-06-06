@@ -78,6 +78,17 @@ dependencies {
   implementation("androidx.compose.ui:ui-tooling-preview")
   debugImplementation("androidx.compose.ui:ui-tooling")
 
+  // Camera and QR scanning
+  implementation("androidx.camera:camera-core:1.3.4")
+  implementation("androidx.camera:camera-camera2:1.3.4")
+  implementation("androidx.camera:camera-lifecycle:1.3.4")
+  implementation("androidx.camera:camera-view:1.3.4")
+  implementation("com.google.mlkit:barcode-scanning:17.2.0")
+
+  // Room for offline storage
+  implementation("androidx.room:room-runtime:2.6.1")
+  implementation("androidx.room:room-ktx:2.6.1")
+
   implementation("com.squareup.retrofit2:retrofit:2.11.0")
   implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
   implementation("com.squareup.okhttp3:okhttp:4.12.0")

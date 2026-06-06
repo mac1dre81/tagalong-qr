@@ -47,4 +47,14 @@ interface ApiService {
 
   @DELETE("api/history/{id}")
   suspend fun deleteHistory(@Path("id") id: String): Response<Unit>
+
+  // QR Scan endpoints
+  @POST("api/qr/save")
+  suspend fun saveQrScan(@Body request: QrScanRequest): Response<QrScanDto>
+
+  @GET("api/qr/history")
+  suspend fun qrHistory(): Response<QrScansResponse>
+
+  @DELETE("api/qr/{id}")
+  suspend fun deleteQrScan(@Path("id") id: String): Response<Unit>
 }

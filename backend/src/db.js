@@ -61,6 +61,17 @@ CREATE TABLE IF NOT EXISTS qr_codes (
 );
 CREATE INDEX IF NOT EXISTS idx_qr_user ON qr_codes(user_id);
 CREATE INDEX IF NOT EXISTS idx_qr_created ON qr_codes(created_at);
+CREATE TABLE IF NOT EXISTS qr_scans (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  content TEXT NOT NULL,
+  type TEXT DEFAULT 'text',
+  name TEXT,
+  scanned_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_qr_scans_user ON qr_scans(user_id);
+CREATE INDEX IF NOT EXISTS idx_qr_scans_scanned ON qr_scans(scanned_at);
 CREATE TABLE IF NOT EXISTS profiles (
   user_id TEXT PRIMARY KEY,
   name TEXT,
