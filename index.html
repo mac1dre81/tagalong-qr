@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TagAlong - QR Code Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js" defer></script>
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="site-header">
+        <div>
+          <p class="eyebrow">TagAlong</p>
+          <h1>QR Code Generator</h1>
+          <p class="subtitle">Create, manage, and track QR codes with TagAlong.</p>
+        </div>
+        <div class="header-actions">
+          <a href="./login/" class="primary-button">Sign In</a>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <section class="surface-card">
+          <div class="section-heading">
+            <div>
+              <h2>Welcome to TagAlong</h2>
+              <p>TagAlong is a QR code generation and management platform.</p>
+            </div>
+          </div>
+
+          <p style="margin-top: 1rem;">The backend API is running successfully!</p>
+          <p>API Health: <span id="health-status" class="status-check">Checking...</span></p>
+
+          <div class="qr-generator" style="margin-top: 2rem;">
+            <h3>Quick Test - Generate a QR Code</h3>
+            <form id="qr-form">
+              <label>
+                <span>Content</span>
+                <input id="qr-content" type="text" placeholder="Enter text or URL" value="Hello TagAlong!" />
+              </label>
+              <button class="primary-button" type="submit" style="margin-top: 1rem;">Generate QR Code</button>
+            </form>
+            <div id="qr-result" style="margin-top: 1.5rem;"></div>
+          </div>
+        </section>
+
+        <section class="surface-card" style="margin-top: 1rem;">
+          <div class="section-heading">
+            <div>
+              <h2>Available API Endpoints</h2>
+            </div>
+          </div>
+
+          <ul class="feature-list">
+            <li><code>POST /api/auth/register</code> - Register new user</li>
+            <li><code>POST /api/auth/login</code> - Login</li>
+            <li><code>GET /api/auth/session</code> - Get session (requires auth)</li>
+            <li><code>POST /api/qr/generate</code> - Create QR code (requires auth)</li>
+            <li><code>GET /api/qr/my-qrs</code> - List your QR codes (requires auth)</li>
+            <li><code>GET /api/profile</code> - Get profile (requires auth)</li>
+            <li><code>GET /api/history</code> - Get history (requires auth)</li>
+          </ul>
+        </section>
+      </main>
+    </div>
+
+    <div id="live-region" class="live-region" aria-live="polite"></div>
+  </body>
+</html>

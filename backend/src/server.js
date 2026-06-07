@@ -44,6 +44,6 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ error: 'Internal server error', requestId: req.requestId });
 });
 
-app.listen(port, () => {
-  console.log(`TagAlong backend listening on port ${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`TagAlong backend listening on 0.0.0.0:${port}`);
 });

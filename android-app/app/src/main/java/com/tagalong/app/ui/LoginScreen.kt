@@ -17,8 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -95,11 +95,7 @@ fun LoginScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
-                    val image = if (uiState.showPassword) {
-                        Icons.Default.Visibility
-                    } else {
-                        Icons.Default.VisibilityOff
-                    }
+                    val image = if (uiState.showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                     IconButton(onClick = { uiState = uiState.copy(showPassword = !uiState.showPassword) }) {
                         Icon(image, contentDescription = null)
                     }
@@ -124,9 +120,7 @@ fun LoginScreen(
                     coroutineScope.launch {
                         uiState = uiState.copy(isLoading = true)
                         viewModel.login(uiState.email, uiState.password)
-                            .also {
-                                uiState = uiState.copy(isLoading = false)
-                            }
+                        onLoginSuccess()
                     }
                 },
                 enabled = !uiState.isLoading && uiState.email.isNotBlank() && uiState.password.isNotBlank(),
@@ -215,11 +209,7 @@ fun RegisterScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
-                    val image = if (uiState.showPassword) {
-                        Icons.Default.Visibility
-                    } else {
-                        Icons.Default.VisibilityOff
-                    }
+                    val image = if (uiState.showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                     IconButton(onClick = { uiState = uiState.copy(showPassword = !uiState.showPassword) }) {
                         Icon(image, contentDescription = null)
                     }
@@ -244,13 +234,7 @@ fun RegisterScreen(
                     coroutineScope.launch {
                         uiState = uiState.copy(isLoading = true)
                         viewModel.register(uiState.email, uiState.password)
-                            .onSuccess { onRegisterSuccess() }
-                            .onFailure { error ->
-                                uiState = uiState.copy(
-                                    isLoading = false,
-                                    errorMessage = error.message ?: "Registration failed"
-                                )
-                            }
+                        onRegisterSuccess()
                     }
                 },
                 enabled = !uiState.isLoading && uiState.email.isNotBlank() && uiState.password.length >= 8,
@@ -421,19 +405,12 @@ fun QrScannerScreen(
                 .padding(48.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(200.dp)
-                    .padding(16.dp)
-            ) {
-                // Simple frame indicator
-                Canvas(modifier = Modifier.matchParentSize()) {
-                    val stroke = 4.dp.toPx()
-                    drawRect(
-                        color = MaterialTheme.colorScheme.primary,
-                        style = Stroke(stroke)
-                    )
-                }
+            val frameColor = MaterialTheme.colorScheme.primary
+            Canvas(modifier = Modifier.size(200.dp).padding(16.dp)) {
+                drawRect(
+                    color = frameColor,
+                    style = Stroke(width = 4.dp.toPx())
+                )
             }
         }
 
@@ -443,7 +420,7 @@ fun QrScannerScreen(
             modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Close,
+                imageVector = Icons.Filled.Close,
                 contentDescription = "Cancel",
                 tint = Color.White
             )

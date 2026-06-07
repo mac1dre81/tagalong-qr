@@ -79,6 +79,7 @@ fun MainScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QrHistoryScreen(
     scans: List<QrScanDto>,
@@ -91,7 +92,7 @@ fun QrHistoryScreen(
                 title = { Text("QR Scan History") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -134,7 +135,7 @@ fun QrScanItem(scan: QrScanDto, onDelete: () -> Unit) {
                 onClick = onDelete,
                 modifier = Modifier.align(Alignment.End)
             ) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete")
+                Icon(Icons.Filled.Delete, contentDescription = "Delete")
             }
         }
     }

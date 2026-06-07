@@ -11,14 +11,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.tagalong.app.data.TagAlongRepository
 import com.tagalong.app.data.QrScanDto
+import com.tagalong.app.data.TagAlongRepository
 import com.tagalong.app.ui.*
 import kotlinx.coroutines.launch
 
@@ -40,10 +40,7 @@ class MainActivity : ComponentActivity() {
     setContent {
       MaterialTheme {
         val state by viewModel.uiState.collectAsState()
-        AppNavigator(
-          state = state,
-          viewModel = viewModel
-        )
+        AppNavigator(state = state, viewModel = viewModel)
       }
     }
   }
@@ -58,7 +55,7 @@ fun AppNavigator(
   state: AppUiState,
   viewModel: AppViewModel,
 ) {
-  val (screen, setScreen) = remember { mutableStateOf(Screen.Main) }
+  val (screen, setScreen) = remember { mutableStateOf(if (state.authenticatedEmail.isBlank()) Screen.Login else Screen.Main) }
   val qrHistory = remember { mutableStateListOf<QrScanDto>() }
 
   // Load QR history when needed
@@ -122,7 +119,7 @@ fun AppNavigator(
         onDelete = { id ->
           coroutineScope.launch {
             viewModel.deleteQrScan(id)
-              .onSuccess { qrHistory.removeAll { it.id == id } }
+              .onSuccess { qrHistory.removeAll { scan -> scan.id == id } }
           }
         }
       )

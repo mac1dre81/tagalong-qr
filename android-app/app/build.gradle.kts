@@ -2,6 +2,7 @@ plugins {
   id("com.android.application")
   id("org.jetbrains.kotlin.android")
   id("org.jetbrains.kotlin.plugin.serialization")
+  id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -22,7 +23,7 @@ android {
   }
 
   composeOptions {
-    kotlinCompilerExtensionVersion = "1.5.15"
+    kotlinCompilerExtensionVersion = "1.7.0"
   }
 
   buildTypes {
@@ -42,7 +43,7 @@ android {
   productFlavors {
     create("dev") {
       dimension = "environment"
-      buildConfigField("String", "API_BASE_URL", "\"${project.findProperty("TAGALONG_API_DEV") ?: "https://10.0.2.2:4000/"}\"")
+      buildConfigField("String", "API_BASE_URL", "\"${project.findProperty("TAGALONG_API_DEV") ?: "http://10.0.2.2:4000/"}\"")
     }
     create("staging") {
       dimension = "environment"
@@ -76,6 +77,8 @@ dependencies {
   implementation("androidx.compose.material3:material3")
   implementation("androidx.compose.ui:ui")
   implementation("androidx.compose.ui:ui-tooling-preview")
+  implementation("androidx.compose.material:material-icons-core")
+  implementation("androidx.compose.material:material-icons-extended")
   debugImplementation("androidx.compose.ui:ui-tooling")
 
   // Camera and QR scanning
@@ -90,9 +93,9 @@ dependencies {
   implementation("androidx.room:room-ktx:2.6.1")
 
   implementation("com.squareup.retrofit2:retrofit:2.11.0")
-  implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
+  implementation("com.squareup.retrofit2:converter-gson:2.11.0")
   implementation("com.squareup.okhttp3:okhttp:4.12.0")
   implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-  implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
+  implementation("com.google.code.gson:gson:2.11.0")
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }

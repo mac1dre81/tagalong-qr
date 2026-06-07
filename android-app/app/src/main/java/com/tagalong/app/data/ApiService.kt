@@ -5,56 +5,40 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
-import retrofit2.http.PUT
 import retrofit2.http.Path
 
 interface ApiService {
-  @POST("api/auth/register")
-  suspend fun register(@Body request: RegisterRequest): Response<AuthResponseDto>
+   @POST("api/auth/register")
+   suspend fun register(@Body request: RegisterRequest): Response<AuthResponseDto>
 
-  @POST("api/auth/login")
-  suspend fun login(@Body request: LoginRequest): Response<AuthResponseDto>
+   @POST("api/auth/login")
+   suspend fun login(@Body request: LoginRequest): Response<AuthResponseDto>
 
-  @POST("api/auth/logout")
-  suspend fun logout(): Response<Unit>
+   @POST("api/auth/logout")
+   suspend fun logout(): Response<Unit>
 
-  @GET("api/auth/session")
-  suspend fun session(): Response<SessionResponseDto>
+   @GET("api/auth/session")
+   suspend fun session(): Response<SessionResponseDto>
 
-  @GET("api/subscription")
-  suspend fun subscription(): Response<SubscriptionResponseDto>
+   @GET("api/subscription")
+   suspend fun subscription(): Response<SubscriptionResponseDto>
 
-  @POST("api/subscription/checkout")
-  suspend fun checkout(@Body request: CheckoutRequest): Response<CheckoutResponseDto>
+   @POST("api/subscription/checkout")
+   suspend fun checkout(@Body request: CheckoutRequest): Response<CheckoutResponseDto>
 
-  @GET("api/profiles")
-  suspend fun profiles(): Response<ProfilesResponseDto>
+   @GET("api/profiles")
+   suspend fun profiles(): Response<ProfilesResponseDto>
 
-  @POST("api/profiles")
-  suspend fun createProfile(@Body request: ProfileRequest): Response<ProfileDto>
+   @GET("api/history")
+   suspend fun history(): Response<HistoryResponseDto>
 
-  @PUT("api/profiles/{id}")
-  suspend fun updateProfile(@Path("id") id: String, @Body request: ProfileRequest): Response<ProfileDto>
+   // QR Scan endpoints
+   @POST("api/qr/save")
+   suspend fun saveQrScan(@Body request: QrScanRequest): Response<QrScanDto>
 
-  @DELETE("api/profiles/{id}")
-  suspend fun deleteProfile(@Path("id") id: String): Response<Unit>
+   @GET("api/qr/history")
+   suspend fun qrHistory(): Response<QrScansResponse>
 
-  @GET("api/history")
-  suspend fun history(): Response<HistoryResponseDto>
-
-  @POST("api/history")
-  suspend fun saveHistory(@Body request: HistoryItemRequest): Response<HistoryItemDto>
-
-  @DELETE("api/history/{id}")
-  suspend fun deleteHistory(@Path("id") id: String): Response<Unit>
-
-  // QR Scan endpoints
-  @POST("api/qr/save")
-  suspend fun saveQrScan(@Body request: QrScanRequest): Response<QrScanDto>
-
-  @GET("api/qr/history")
-  suspend fun qrHistory(): Response<QrScansResponse>
-
-  @DELETE("api/qr/{id}")
-  suspend fun deleteQrScan(@Path("id") id: String): Response<Unit>
+   @DELETE("api/qr/{id}")
+   suspend fun deleteQrScan(@Path("id") id: String): Response<Unit>
 }

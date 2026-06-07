@@ -2,13 +2,13 @@ package com.tagalong.app.data
 
 import android.content.Context
 import android.util.Log
-import com.squareup.moshi.Moshi
+import com.google.gson.GsonBuilder
 import com.tagalong.app.config.RuntimeConfig
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
+import retrofit2.converter.gson.GsonConverterFactory
 
 class TagAlongRepository private constructor(
   private val api: ApiService,
@@ -16,6 +16,36 @@ class TagAlongRepository private constructor(
 ) {
   companion object {
     private const val TAG = "TagAlongRepository"
+
+    fun create(context: Context): TagAlongRepository {
+      val authStore = AuthStore(context.applicationContext)
+      val authInterceptor = Interceptor { chain ->
+        val requestBuilder = chain.request().newBuilder()
+        authStore.token?.takeIf { it.isNotBlank() }?.let { token ->
+          requestBuilder.header("Authorization", "Bearer ".plus(token))
+        }
+        chain.proceed(requestBuilder.build())
+      }
+
+      val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
+
+      val client = OkHttpClient.Builder()
+        .addInterceptor(authInterceptor)
+        .addInterceptor(logging)
+        .build()
+
+      val gson = GsonBuilder()
+        .setLenient()
+        .create()
+
+      val retrofit = Retrofit.Builder()
+        .baseUrl(RuntimeConfig.apiBaseUrl)
+        .addConverterFactory(GsonConverterFactory.create(gson))
+        .client(client)
+        .build()
+
+      return TagAlongRepository(retrofit.create(ApiService::class.java), authStore)
+    }
   }
 
   private inline fun <T> safeApiCall(block: () -> retrofit2.Response<T>): Result<T> {
@@ -90,35 +120,5 @@ class TagAlongRepository private constructor(
 
   suspend fun deleteQrScan(id: String): Result<Unit> = safeApiCall {
     api.deleteQrScan(id)
-  }
-
-  companion object {
-    fun create(context: Context): TagAlongRepository {
-      val authStore = AuthStore(context.applicationContext)
-      val authInterceptor = Interceptor { chain ->
-        val requestBuilder = chain.request().newBuilder()
-        authStore.token?.takeIf { it.isNotBlank() }?.let { token ->
-          requestBuilder.header("Authorization", "Bearer ".plus(token))
-        }
-        chain.proceed(requestBuilder.build())
-      }
-
-      val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
-
-      val client = OkHttpClient.Builder()
-        .addInterceptor(authInterceptor)
-        .addInterceptor(logging)
-        .build()
-
-      val moshi = Moshi.Builder().build()
-
-      val retrofit = Retrofit.Builder()
-        .baseUrl(RuntimeConfig.apiBaseUrl)
-        .addConverterFactory(MoshiConverterFactory.create(moshi))
-        .client(client)
-        .build()
-
-      return TagAlongRepository(retrofit.create(ApiService::class.java), authStore)
-    }
   }
 }
