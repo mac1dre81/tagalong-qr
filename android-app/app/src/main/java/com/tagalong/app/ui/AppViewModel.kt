@@ -1,3 +1,4 @@
+// android-app/app/src/main/java/com/tagalong/app/ui/AppViewModel.kt
 package com.tagalong.app.ui
 
 import androidx.lifecycle.ViewModel
@@ -36,31 +37,62 @@ class AppViewModel(private val repository: TagAlongRepository) : ViewModel() {
     }
   }
 
-  fun login(email: String, password: String) {
-    viewModelScope.launch {
-      _uiState.value = _uiState.value.copy(loading = true)
-      repository.login(email, password)
-        .onSuccess {
-          _uiState.value = _uiState.value.copy(authenticatedEmail = it.email, statusMessage = "Signed in", loading = false)
-          loadData()
-        }
-        .onFailure {
-          _uiState.value = _uiState.value.copy(statusMessage = "Sign-in failed", loading = false)
-        }
+  /**
+   * Suspended login function that returns true on success.
+   * Call from a coroutine (e.g., coroutineScope.launch { viewModel.login(...) }).
+   * Updates uiState.loading, uiState.statusMessage, and uiState.authenticatedEmail.
+   */
+  suspend fun login(email: String, password: String): Boolean {
+    _uiState.value = _uiState.value.copy(loading = true, statusMessage = "")
+    return try {
+      val result = repository.login(email, password)
+      result.onSuccess { user ->
+        _uiState.value = _uiState.value.copy(
+          authenticatedEmail = user.email,
+          statusMessage = "Signed in",
+          loading = false
+        )
+        // load additional data asynchronously
+        loadData()
+      }.onFailure { throwable ->
+        _uiState.value = _uiState.value.copy(
+          statusMessage = throwable?.message ?: "Sign-in failed",
+          loading = false
+        )
+      }
+      result.isSuccess
+    } catch (e: Exception) {
+      _uiState.value = _uiState.value.copy(statusMessage = e.message ?: "Sign-in failed", loading = false)
+      false
     }
   }
 
-  fun register(email: String, password: String) {
-    viewModelScope.launch {
-      _uiState.value = _uiState.value.copy(loading = true)
-      repository.register(email, password)
-        .onSuccess {
-          _uiState.value = _uiState.value.copy(authenticatedEmail = it.email, statusMessage = "Account created", loading = false)
-          loadData()
-        }
-        .onFailure {
-          _uiState.value = _uiState.value.copy(statusMessage = "Registration failed", loading = false)
-        }
+  /**
+   * Suspended register function that returns true on success.
+   * Call from a coroutine (e.g., coroutineScope.launch { viewModel.register(...) }).
+   * Updates uiState similarly to login.
+   */
+  suspend fun register(email: String, password: String): Boolean {
+    _uiState.value = _uiState.value.copy(loading = true, statusMessage = "")
+    return try {
+      val result = repository.register(email, password)
+      result.onSuccess { user ->
+        _uiState.value = _uiState.value.copy(
+          authenticatedEmail = user.email,
+          statusMessage = "Account created",
+          loading = false
+        )
+        loadData()
+      }.onFailure { throwable ->
+        _uiState.value = _uiState.value.copy(
+          statusMessage = throwable?.message ?: "Registration failed",
+          loading = false
+        )
+      }
+      result.isSuccess
+    } catch (e: Exception) {
+      _uiState.value = _uiState.value.copy(statusMessage = e.message ?: "Registration failed", loading = false)
+      false
     }
   }
 

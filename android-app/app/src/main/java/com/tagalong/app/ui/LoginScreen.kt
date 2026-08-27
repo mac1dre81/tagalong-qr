@@ -1,3 +1,4 @@
+// android-app/app/src/main/java/com/tagalong/app/ui/LoginScreen.kt
 package com.tagalong.app.ui
 
 import android.Manifest
@@ -45,7 +46,40 @@ fun LoginScreen(
     viewModel: AppViewModel
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var uiState by remember { mutableStateOf(LoginUiState()) }
+
+    // local form state (inputs + show password)
+    var formState by remember { mutableStateOf(LoginUiState()) }
+
+    // observe ViewModel UI state
+    val appState by viewModel.uiState.collectAsState()
+
+    // derive loading from ViewModel so UI reflects real status
+    val isLoading = appState.loading
+
+    // track previous loading to detect transition from loading -> not loading
+    var prevLoading by remember { mutableStateOf(false) }
+
+    // When authenticatedEmail becomes non-empty, navigate
+    LaunchedEffect(appState.authenticatedEmail) {
+        if (appState.authenticatedEmail.isNotBlank()) {
+            onLoginSuccess()
+        }
+    }
+
+    // Detect failed login: when loading transitioned false and no authenticatedEmail set
+    LaunchedEffect(isLoading) {
+        if (prevLoading && !isLoading) {
+            if (appState.authenticatedEmail.isBlank()) {
+                // surface error from ViewModel statusMessage (or fallback)
+                val message = when {
+                    appState.statusMessage.isNotBlank() -> appState.statusMessage
+                    else -> "Sign-in failed"
+                }
+                formState = formState.copy(isLoading = false, errorMessage = message)
+            }
+        }
+        prevLoading = isLoading
+    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -72,37 +106,38 @@ fun LoginScreen(
             )
 
             OutlinedTextField(
-                value = uiState.email,
-                onValueChange = { uiState = uiState.copy(email = it, errorMessage = null) },
+                value = formState.email,
+                onValueChange = { formState = formState.copy(email = it, errorMessage = null) },
                 label = { Text("Email") },
                 singleLine = true,
-                enabled = !uiState.isLoading,
+                enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = uiState.password,
-                onValueChange = { uiState = uiState.copy(password = it, errorMessage = null) },
+                value = formState.password,
+                onValueChange = { formState = formState.copy(password = it, errorMessage = null) },
                 label = { Text("Password") },
                 singleLine = true,
-                enabled = !uiState.isLoading,
-                visualTransformation = if (uiState.showPassword) {
+                enabled = !isLoading,
+                visualTransformation = if (formState.showPassword) {
                     VisualTransformation.None
                 } else {
                     PasswordVisualTransformation()
                 },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
-                    val image = if (uiState.showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    IconButton(onClick = { uiState = uiState.copy(showPassword = !uiState.showPassword) }) {
+                    val image = if (formState.showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                    IconButton(onClick = { formState = formState.copy(showPassword = !formState.showPassword) }) {
                         Icon(image, contentDescription = null)
                     }
                 }
             )
 
-            uiState.errorMessage?.let {
+            // show error from local formState (which we set when VM reports failure)
+            formState.errorMessage?.let {
                 Text(
                     text = it,
                     color = MaterialTheme.colorScheme.error,
@@ -117,19 +152,21 @@ fun LoginScreen(
 
             Button(
                 onClick = {
+                    // clear any previous error, call ViewModel login and wait for VM to update loading/auth state
+                    formState = formState.copy(isLoading = true, errorMessage = null)
                     coroutineScope.launch {
-                        uiState = uiState.copy(isLoading = true)
-                        viewModel.login(uiState.email, uiState.password)
-                        onLoginSuccess()
+                        viewModel.login(formState.email, formState.password)
+                        // do NOT call onLoginSuccess here — navigation happens via observing appState.authenticatedEmail
                     }
                 },
-                enabled = !uiState.isLoading && uiState.email.isNotBlank() && uiState.password.isNotBlank(),
+                enabled = !isLoading && formState.email.isNotBlank() && formState.password.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (uiState.isLoading) {
+                if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
@@ -138,7 +175,7 @@ fun LoginScreen(
 
             TextButton(
                 onClick = onRegisterClick,
-                enabled = !uiState.isLoading,
+                enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Create Account")
@@ -146,12 +183,8 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            TextButton(
-                onClick = onLoginSuccess,
-                enabled = !uiState.isLoading
-            ) {
-                Text("Already have an account? Sign in")
-            }
+            // Removed misleading "Already have an account? Sign in" that navigated without auth.
+            // If you want a guest or alternate flow, implement an explicit guest login action here instead.
         }
     }
 }
@@ -163,7 +196,32 @@ fun RegisterScreen(
     viewModel: AppViewModel
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var uiState by remember { mutableStateOf(LoginUiState()) }
+    var formState by remember { mutableStateOf(LoginUiState()) }
+
+    val appState by viewModel.uiState.collectAsState()
+    val isLoading = appState.loading
+
+    // navigate when register causes authenticatedEmail to be set
+    LaunchedEffect(appState.authenticatedEmail) {
+        if (appState.authenticatedEmail.isNotBlank()) {
+            onRegisterSuccess()
+        }
+    }
+
+    // detect failed register and surface message
+    var prevLoading by remember { mutableStateOf(false) }
+    LaunchedEffect(isLoading) {
+        if (prevLoading && !isLoading) {
+            if (appState.authenticatedEmail.isBlank()) {
+                val message = when {
+                    appState.statusMessage.isNotBlank() -> appState.statusMessage
+                    else -> "Registration failed"
+                }
+                formState = formState.copy(isLoading = false, errorMessage = message)
+            }
+        }
+        prevLoading = isLoading
+    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -186,37 +244,37 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             OutlinedTextField(
-                value = uiState.email,
-                onValueChange = { uiState = uiState.copy(email = it, errorMessage = null) },
+                value = formState.email,
+                onValueChange = { formState = formState.copy(email = it, errorMessage = null) },
                 label = { Text("Email") },
                 singleLine = true,
-                enabled = !uiState.isLoading,
+                enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = uiState.password,
-                onValueChange = { uiState = uiState.copy(password = it, errorMessage = null) },
+                value = formState.password,
+                onValueChange = { formState = formState.copy(password = it, errorMessage = null) },
                 label = { Text("Password") },
                 singleLine = true,
-                enabled = !uiState.isLoading,
-                visualTransformation = if (uiState.showPassword) {
+                enabled = !isLoading,
+                visualTransformation = if (formState.showPassword) {
                     VisualTransformation.None
                 } else {
                     PasswordVisualTransformation()
                 },
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
-                    val image = if (uiState.showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    IconButton(onClick = { uiState = uiState.copy(showPassword = !uiState.showPassword) }) {
+                    val image = if (formState.showPassword) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                    IconButton(onClick = { formState = formState.copy(showPassword = !formState.showPassword) }) {
                         Icon(image, contentDescription = null)
                     }
                 }
             )
 
-            uiState.errorMessage?.let {
+            formState.errorMessage?.let {
                 Text(
                     text = it,
                     color = MaterialTheme.colorScheme.error,
@@ -231,19 +289,20 @@ fun RegisterScreen(
 
             Button(
                 onClick = {
+                    formState = formState.copy(isLoading = true, errorMessage = null)
                     coroutineScope.launch {
-                        uiState = uiState.copy(isLoading = true)
-                        viewModel.register(uiState.email, uiState.password)
-                        onRegisterSuccess()
+                        viewModel.register(formState.email, formState.password)
+                        // navigation handled by observing viewModel state
                     }
                 },
-                enabled = !uiState.isLoading && uiState.email.isNotBlank() && uiState.password.length >= 8,
+                enabled = !isLoading && formState.email.isNotBlank() && formState.password.length >= 8,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (uiState.isLoading) {
+                if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
@@ -252,7 +311,7 @@ fun RegisterScreen(
 
             TextButton(
                 onClick = onBackToLogin,
-                enabled = !uiState.isLoading
+                enabled = !isLoading
             ) {
                 Text("Back to Sign In")
             }
